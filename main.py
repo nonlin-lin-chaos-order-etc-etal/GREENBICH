@@ -71,6 +71,8 @@ botName = settings.settings('botName')
 masterName = settings.settings('masterName')
 coinmarketcap_apikey = settings.settings('coinmarketcap_apikey')
 titleEnabled = bool(settings.settings('titleEnabled'))
+onlycmc = bool(settings.settings('onlycmc'))
+enableother1 = not onlycmc
 
 print("connecting...")
 irc.connect ((network, port))
@@ -151,18 +153,19 @@ while True:
     except:
         print('error getting ip_user')
 
-    #-----------Translate_krzb---------    
+    if enableother1:
+        #-----------Translate_krzb---------    
 
-    if 'PRIVMSG '+channel+' :!п ' in data \
-       or 'PRIVMSG '+botName+' :!п ' in data:
-        if 'PRIVMSG '+channel+' :!п ' in data:
-            where_message = channel            
-        elif 'PRIVMSG '+botName+' :!п ' in data:
-            where_message = name
+        if 'PRIVMSG '+channel+' :!п ' in data \
+           or 'PRIVMSG '+botName+' :!п ' in data:
+            if 'PRIVMSG '+channel+' :!п ' in data:
+                where_message = channel            
+            elif 'PRIVMSG '+botName+' :!п ' in data:
+                where_message = name
             
-        tr_txt = message.split('!п ',1)[1].strip()
-        res_txt = translate_krzb.tr(tr_txt)
-        send('PRIVMSG '+where_message+' :\x02перевод с кракозябьечьего:\x02 '+res_txt+'\r\n')
+            tr_txt = message.split('!п ',1)[1].strip()
+            res_txt = translate_krzb.tr(tr_txt)
+            send('PRIVMSG '+where_message+' :\x02перевод с кракозябьечьего:\x02 '+res_txt+'\r\n')
 
     #-----------Bot_help---------------
 
@@ -229,7 +232,8 @@ while True:
         
     #---------Whois servis--------------------------
 
-    if 'PRIVMSG '+channel+' :!где айпи' in data\
+    if enableother1:
+      if 'PRIVMSG '+channel+' :!где айпи' in data\
        or 'PRIVMSG '+botName+' :!где айпи' in data:
 
         if 'PRIVMSG '+channel+' :!где айпи' in data:
@@ -264,7 +268,7 @@ while True:
                      
     #---------Info from link in channel-------------
     
-    if titleEnabled:
+    if enableother1 and titleEnabled:
         if 'PRIVMSG %s :'%(channel) in data and '.png' not in data and '.jpg' not in data and '.doc'\
         not in data and 'tiff' not in data and 'gif' not in data and '.jpeg' not in data and '.pdf' not in data:
             if 'http://' in data or 'https://' in data or 'www.' in data:
@@ -278,10 +282,12 @@ while True:
     #---------Voting--------------------------------
                 
     t = time.time()
-    if '!стоп опрос' in data and 'PRIVMSG' in data and name == masterName:
+    if enableother1:
+      if '!стоп опрос' in data and 'PRIVMSG' in data and name == masterName:
         t2 = 0
         print('счетчик опроса сброшен хозяином!')
-    if 'PRIVMSG '+channel+' :!опрос ' in data and ip_user not in list_bot_not_work:
+    if enableother1:
+      if 'PRIVMSG '+channel+' :!опрос ' in data and ip_user not in list_bot_not_work:
         if t2 == 0 or t > t2+time_vote:
             if ' сек ' not in data:
                 time_vote = 60
@@ -318,7 +324,8 @@ while True:
             list_vote_ip = []
                 
     # If find '!да' count +1.  
-    if data.find('PRIVMSG '+channel+' :!да') != -1 or data.find('PRIVMSG '+botName+' :!да') != -1:
+    if enableother1:
+      if data.find('PRIVMSG '+channel+' :!да') != -1 or data.find('PRIVMSG '+botName+' :!да') != -1:
         if ip_user not in list_vote_ip and t2 != 0:
             count_vote_plus +=1
             dict_voted[name] = 'yes'
@@ -327,7 +334,8 @@ while True:
             send('NOTICE '+name+' :Ваш ответ \"да\" учтен!\r\n')
 
     # If find '!нет' count +1.  
-    if data.find('PRIVMSG '+channel+' :!нет') != -1 or data.find('PRIVMSG '+botName+' :!нет') != -1:
+    if enableother1:
+      if data.find('PRIVMSG '+channel+' :!нет') != -1 or data.find('PRIVMSG '+botName+' :!нет') != -1:
         if ip_user not in list_vote_ip and t2 != 0:
             count_vote_minus +=1
             dict_voted[name] = 'no'
@@ -336,17 +344,20 @@ while True:
             send('NOTICE '+name+' :Ваш ответ \"нет\" учтен!\r\n')
    
     # If masterName send '!список голосования': send to him privat messag with dictonary Who How voted.  
-    if data.find('PRIVMSG '+botName+' :!список опроса') !=-1 and name == masterName:
+    if enableother1:
+      if data.find('PRIVMSG '+botName+' :!список опроса') !=-1 and name == masterName:
         for i in dict_voted:
             send('PRIVMSG '+masterName+' : '+i+': '+dict_voted[i]+'\r\n')
 
     # Count how much was message in channel '!голосование'.  
-    if data.find('PRIVMSG '+channel+' :!опрос') != -1 and t2 != 0:
+    if enableother1:
+      if data.find('PRIVMSG '+channel+' :!опрос') != -1 and t2 != 0:
         count_voting += 1
 
     # If voting is not end, and users send '!голосование...': send message in channel.  
     t4 = time.time()
-    if data.find('PRIVMSG '+channel+' :!опрос') != -1 and t4-t2 > 5:
+    if enableother1:
+      if data.find('PRIVMSG '+channel+' :!опрос') != -1 and t4-t2 > 5:
         t3 = time.time()
         time_vote_rest_min = (time_vote-(t3-t2))//60
         time_vote_rest_sec = (time_vote-(t3-t2))%60

@@ -34,6 +34,8 @@ def settings(x):
         return config["coinmarketcap_apikey"]
     elif x == 'titleEnabled':
         return config["titleEnabled"]
+    elif x == 'onlycmc':
+        return config["onlycmc"]
     else: return 'N/A'
 
 
