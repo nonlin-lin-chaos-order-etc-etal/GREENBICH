@@ -1,5 +1,3 @@
-#-------Import modules---------------------
-
 import socket
 import sys
 import time
@@ -9,8 +7,6 @@ import translate_krzb
 import whois
 
 from urllib.parse import unquote
-
-#-------Functions---------------------------
 
 # Function shortening of ic.send.  
 def send(mes):
@@ -61,15 +57,11 @@ def link_title(n):
                    ('www.','').replace('http://','').replace\
                    ('https://','').strip()
         else:
-            return 'Title is no'
+            return 'Title not found'
           
-#-------Global changes variables------------
-
 # Install min & max timer vote.  
 min_timer = 30
 max_timer = 300
-
-#-------Connect server----------------------
 
 network = settings.settings('network')
 port = settings.settings('port')
@@ -77,13 +69,12 @@ irc = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
 channel = settings.settings('channel')
 botName = settings.settings('botName')
 masterName = settings.settings('masterName')
-
-#-------Conect to IRC-server----------------
+coinmarketcap_apikey = settings.settings('coinmarketcap_apikey')
 
 irc.connect ((network, port))
 print (irc.recv(2048).decode("UTF-8"))
 send('NICK '+botName+'\r\n')
-send('USER '+botName+' '+botName+' '+botName+' :Python IRC\r\n')
+send('USER '+botName+' '+botName+' '+botName+' :ircbot\r\n')
 send('JOIN '+channel+' \r\n')
 send('NickServ IDENTIFY '+settings.settings('password')+'\r\n')
 send('MODE '+botName+' +x')
@@ -172,14 +163,14 @@ while True:
 
     #-----------Bot_help---------------
 
-    if 'PRIVMSG '+channel+' :!помощь' in data or 'PRIVMSG '+botName+' :!помощь' in data:
+    if 'PRIVMSG '+channel+' :!help' in data or 'PRIVMSG '+botName+' :!справка' in data or 'PRIVMSG '+botName+' :!помощь' in data or 'PRIVMSG '+botName+' :!хелп' in data:
         send('NOTICE %s : Помощь по командам бота:\r\n' %(name))
         send('NOTICE %s : ***Функция опроса: [!опрос (число) сек (тема опрос)], например\
 (пишем без кавычек: \"!опрос 60 сек Вы любите ониме?\", если не писать время, то время\
 установится на 60 сек\r\n' %(name))
         send('NOTICE %s : ***Функция курса: просто пишите (без кавычек): \"!курс\". Писать\
 можно и в приват боту\r\n' %(name))
-        send('NOTICE %s : ***Функция айпи: что бы узнать расположение IP, просто пишите\
+        send('NOTICE %s : ***Функция whois: что бы узнать расположение IP, просто пишите\
 (без кавычек): \"!где айпи (IP)\", пример: \"!где айпи \
 188.00.00.01\". Писать можно и в приват к боту\r\n' %(name))
         send('NOTICE %s : ***Функция перевода с английских букв на русские: \"!п tekst perevoda\", пример: \"!п ghbdtn\r\n' %(name))
@@ -211,19 +202,18 @@ while True:
         dict_users[name] = message
     
     # Message about flood and kick. 
-    if data.find('PRIVMSG') != -1 and name not in list_floodfree:
-        for key in dict_count: 
-            if dict_count[key] == 3 and key != 'none':
-                send('PRIVMSG '+where_message+' :'+key+', Прекрати флудить!\r\n')
-                dict_count[key] += 1
-            elif dict_count[key] > 5 and key != 'none':
-                send('KICK '+channel+' '+key+' :Я же сказал не флуди!\r\n')
-                dict_count[key] = 0
+    #if data.find('PRIVMSG') != -1 and name not in list_floodfree:
+    #    for key in dict_count: 
+    #        if dict_count[key] == 3 and key != 'none':
+    #            send('PRIVMSG '+where_message+' :'+key+', Прекрати флудить!\r\n')
+    #            dict_count[key] += 1
+    #        elif dict_count[key] > 5 and key != 'none':
+    #            send('KICK '+channel+' '+key+' :Я же сказал не флуди!\r\n')
+    #            dict_count[key] = 0
             
-    #--------Request-answer in channel-------------
       
     # Out command.  
-    if data.find('PRIVMSG '+channel+' :!бот выйди') != -1 and name == masterName:
+    if data.find('PRIVMSG '+channel+' :!quit') != -1 and name == masterName:
         send('PRIVMSG '+channel+' :Хорошо, всем счастливо оставаться!\r\n')
         send('QUIT\r\n')
         sys.exit()
@@ -373,9 +363,6 @@ while True:
         send('PRIVMSG '+channel+' : Опрос окончен!\r\n')
         send(voting_results)
     
-    #---------Exchange-------------
-
-    # Get exchange from internet API at regular time.     
     if 'PRIVMSG '+channel+' :!курс' in data or 'PRIVMSG '+botName+' :!курс' in data:
         if 'PRIVMSG '+channel+' :!курс' in data:
             where_mes_exc = channel
@@ -383,84 +370,41 @@ while True:
             where_mes_exc = name
 
         try:
-            api_exc_get = requests.get('https://api.exmo.com/v1/ticker/', timeout = 5)
-            api_exc = api_exc_get.text
+            #This example uses Python 2.7 and the python-request library.
+            
+            from requests import Request, Session
+            from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
+            import json
+            
+            url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
+            parameters = {
+              'symbol':'BTC,ETH',
+              'convert':'USD'
+            }
+            headers = {
+              'Accepts': 'application/json',
+              'X-CMC_PRO_API_KEY': coinmarketcap_apikey,
+            }
+            
+            session = Session()
+            session.headers.update(headers)
+            
+            try:
+              response = session.get(url, params=parameters)
+              cmc = json.loads(response.text)
+              print(cmc)
+            except (ConnectionError, Timeout, TooManyRedirects) as e:
+              print(e)
         except:
-            print('Проблемы с получением API exchange!')
-        try:
-            btc_usd = round(float(api_exc.split('"BTC_USD":',1)[1].split('"buy_price":"',1)[1].split('","',1)[0][0:]),2)
-        except:
-            print('Проблемы с получением курса btc_usd')
-        try:
-            eth_usd = round(float(api_exc.split('"ETH_USDT":',1)[1].split('"buy_price":"',1)[1].split('","',1)[0][0:]),2)
-        except:
-            print('Проблемы с получением курса eth_usd')
-        try:
-            usd_rub = round(float(api_exc.split('"USDT_RUB":',1)[1].split('"buy_price":"',1)[1].split('","',1)[0][0:]),2)
-        except:
-            print('Проблемы с получением курса usd_rub')    
-        try:
-            btc_eur = round(float(api_exc.split('"BTC_EUR":',1)[1].split('"buy_price":"',1)[1].split('","',1)[0][0:]),2)
-        except:
-            print('Проблемы с получением курса btc_eur')
+            print('Исключение api cmc: ?')
+        btc_usd = cmc["data"]["BTC"]["quote"]["USD"]["price"]
+        eth_usd = cmc["data"]["ETH"]["quote"]["USD"]["price"]
 
-        eur_rub = round(float(usd_rub*(btc_usd / btc_eur)),2)
-        btc_rub = round(float(btc_usd * usd_rub),2)
-
-        # Make trends symbols from last request.  
-        if btc_usd > btc_usd_old:
-            btc_usd_tend = '▲'
-        elif btc_usd < btc_usd_old:
-            btc_usd_tend = '▼'
-        else:
-            btc_usd_tend = '■'
-
-        if eth_usd > eth_usd_old:
-            eth_usd_tend = '▲'
-        elif eth_usd < eth_usd_old:
-            eth_usd_tend = '▼'
-        else:
-            eth_usd_tend = '■'    
-
-        if btc_rub > btc_rub_old:
-            btc_rub_tend = '▲'
-        elif btc_rub < btc_rub_old:
-            btc_rub_tend = '▼'
-        else:
-            btc_rub_tend = '■'    
-
-        if usd_rub > usd_rub_old:
-            usd_rub_tend = '▲'
-        elif usd_rub < usd_rub_old:
-            usd_rub_tend = '▼'
-        else:
-            usd_rub_tend = '■'
-
-        if eur_rub > eur_rub_old:
-            eur_rub_tend = '▲'
-        elif eur_rub < eur_rub_old:
-            eur_rub_tend = '▼'
-        else:
-            eur_rub_tend = '■'    
-
-        # Make variables from nubmers for make trends (see up).      
-        btc_usd_old = btc_usd
-        eth_usd_old = eth_usd
-        usd_rub_old = usd_rub
-        eur_rub_old = eur_rub
-        btc_rub_old = btc_rub        
 
         btc_usd_str = str(btc_usd)
         eth_usd_str = str(eth_usd)
-        usd_rub_str = str(usd_rub)
-        eur_rub_str = str(eur_rub)
-        btc_rub_str = str(btc_rub)            
 
-        send_res_exc = '\x033Курсы: \x02BTC/USD:\x02 '+btc_usd_str+\
-        ' '+btc_usd_tend+' \x02ETH/USD:\x02 '+eth_usd_str+' '+eth_usd_tend+\
-        ' \x02USD/RUB:\x02 '+usd_rub_str+' '+usd_rub_tend+' \x02EUR/RUB:\x02 '+\
-        eur_rub_str+' '+eur_rub_tend+' \x02BTC/RUB:\x02 '+btc_rub_str+\
-        ' '+btc_rub_tend+'\r\n'
+        send_res_exc = '\x033Курс CoinMarketCap: \x02BTC/USD:\x02 '+btc_usd_str+' \x02ETH/USD:\x02 '+eth_usd_str+'\r\n'
 
         send('PRIVMSG %s :%s\r\n'%(where_mes_exc,send_res_exc))
     
