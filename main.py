@@ -44,13 +44,13 @@ def link_title(n):
         if '</TITLE>' in txt_title or '</title>' in txt_title\
                       or '</Title>' in txt_title:
             if '</TITLE>' in txt_title:
-                title = '\x02Title\x02 of '+unquoted_link+': '+\
+                title = '\x02Title\x02 of '+n+': '+\
                 txt_title.split('</TITLE>',1)[0].split('>')[-1]
             elif '</title>' in txt_title:
-                title = '\x02Title\x02 of '+unquoted_link+': '+\
+                title = '\x02Title\x02 of '+n+': '+\
                 txt_title.split('</title>',1)[0].split('>')[-1]
             elif '</Title>' in txt_title:
-                title = '\x02Title\x02 of '+unquoted_link+': '+\
+                title = '\x02Title\x02 of '+n+': '+\
                 txt_title.split('</Title>',1)[0].split('>')[-1]
 
             return title.replace('\r','').replace('\n','').replace\
@@ -64,20 +64,22 @@ min_timer = 30
 max_timer = 300
 
 network = settings.settings('network')
-port = settings.settings('port')
+port = int(settings.settings('port'))
 irc = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
 channel = settings.settings('channel')
 botName = settings.settings('botName')
 masterName = settings.settings('masterName')
 coinmarketcap_apikey = settings.settings('coinmarketcap_apikey')
+titleEnabled = bool(settings.settings('titleEnabled'))
 
+print("connecting...")
 irc.connect ((network, port))
-print (irc.recv(2048).decode("UTF-8"))
+print("connected, sending login handshake")
+#print (irc.recv(2048).decode("UTF-8"))
 send('NICK '+botName+'\r\n')
 send('USER '+botName+' '+botName+' '+botName+' :ircbot\r\n')
-send('JOIN '+channel+' \r\n')
-send('NickServ IDENTIFY '+settings.settings('password')+'\r\n')
-send('MODE '+botName+' +x')
+#send('NickServ IDENTIFY '+settings.settings('password')+'\r\n')
+#send('MODE '+botName+' +x')
 
 #-------Global_variables--------------------
    
@@ -128,16 +130,17 @@ list_vote_ip = []
 list_floodfree = settings.settings('list_floodfree')
 list_bot_not_work = settings.settings('list_bot_not_work')
 
-#-------Major_while-------------------------
-  
 while True:
     try:
         data = irc.recv(2048).decode("UTF-8")
     except:
         continue
-    # Ping-pong.
     if data.find('PING') != -1:
-        send('PONG'+data.split()[1]+'\r\n')
+        send('PONG '+data.split(" ")[1]+'\r\n')
+
+    #001 welcome
+    if data.split(" ")[1]=="001": send('JOIN '+channel+' \r\n')
+
     
     # Make variables Name, Message, IP from user message.
     if data.find('PRIVMSG') != -1:
@@ -146,7 +149,7 @@ while True:
     try:
         ip_user=data.split('@',1)[1].split(' ',1)[0]
     except:
-        print('no ip_user on 73 line')
+        print('error getting ip_user')
 
     #-----------Translate_krzb---------    
 
@@ -261,16 +264,17 @@ while True:
                      
     #---------Info from link in channel-------------
     
-    if 'PRIVMSG %s :'%(channel) in data and '.png' not in data and '.jpg' not in data and '.doc'\
-       not in data and 'tiff' not in data and 'gif' not in data and '.jpeg' not in data and '.pdf' not in data:
-        if 'http://' in data or 'https://' in data or 'www.' in data:
-            try:
-                send('PRIVMSG %s :%s\r\n'%(channel,link_title(data)))
-            except requests.exceptions.ConnectionError:
-                print('Ошибка получения Title (requests.exceptions.ConnectionError)')
-                send('PRIVMSG '+channel+' :Ошибка, возможно такого адреса нет\r\n')
-            except:
-                print('Error link!')  
+    if titleEnabled:
+        if 'PRIVMSG %s :'%(channel) in data and '.png' not in data and '.jpg' not in data and '.doc'\
+        not in data and 'tiff' not in data and 'gif' not in data and '.jpeg' not in data and '.pdf' not in data:
+            if 'http://' in data or 'https://' in data or 'www.' in data:
+                try:
+                   send('PRIVMSG %s :%s\r\n'%(channel,link_title(data)))
+                except requests.exceptions.ConnectionError:
+                    print('Ошибка получения Title (requests.exceptions.ConnectionError)')
+                    send('PRIVMSG '+channel+' :Ошибка, возможно такого адреса нет\r\n')
+                except:
+                    print('Error link!')  
     #---------Voting--------------------------------
                 
     t = time.time()
