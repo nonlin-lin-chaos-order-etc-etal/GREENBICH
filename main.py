@@ -432,6 +432,3 @@ while True:
             print(e)
 
 
-    #------------Printing---------------
-
-    print(data)
