@@ -1,0 +1,17 @@
+virtualenv venv1 --python=python3
+
+
+
+
+ pip install ipwhois
+pip is configured with locations that require TLS/SSL, however the ssl module in Python is not available.
+
+
+pip install ssl
+pip install ssl
+
+
+sudo apt-get install libreadline-gplv2-dev libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev
+
+pip install ipwhois
+pip install ipwhois

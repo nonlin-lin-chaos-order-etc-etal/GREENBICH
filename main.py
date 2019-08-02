@@ -133,10 +133,12 @@ list_floodfree = settings.settings('list_floodfree')
 list_bot_not_work = settings.settings('list_bot_not_work')
 
 while True:
-    try:
-        data = irc.recv(2048).decode("UTF-8")
-    except:
-        continue
+    #try:
+    data = irc.recv(2048).decode("UTF-8")
+    print("rx:"+data)
+    #except:
+    #    print("rx_except")
+    #    continue
     if data.find('PING') != -1:
         send('PONG '+data.split(" ")[1]+'\r\n')
 
@@ -149,7 +151,7 @@ while True:
         name = data.split('!',1)[0][1:]
         message = data.split('PRIVMSG',1)[1].split(':',1)[1]
     try:
-        ip_user=data.split('@',1)[1].split(' ',1)[0]
+        ip_user=None#"data.split('@',1)[1].split(' ',1)[0]
     except:
         print('error getting ip_user')
 
@@ -230,7 +232,7 @@ while True:
         mes_per_bot = message.split('!напиши ',1)[1]
         send(mes_per_bot)
         
-    #---------Whois servis--------------------------
+    #---------Whois service--------------------------
 
     if enableother1:
       if 'PRIVMSG '+channel+' :!где айпи' in data\
@@ -262,7 +264,7 @@ while True:
             send('PRIVMSG '+where_message_whois+' :'+whois_final_reply)            
 
         except:
-            print('get Value Error in whois servis!')
+            print('get Value Error in whois service!')
             send('PRIVMSG '+where_message_whois+' :Ошибка! Вводите только IP адрес \
 из цифр, разделенных точками!\r\n')
                      
@@ -378,11 +380,17 @@ while True:
         send('PRIVMSG '+channel+' : Опрос окончен!\r\n')
         send(voting_results)
     
-    if 'PRIVMSG '+channel+' :!курс' in data or 'PRIVMSG '+botName+' :!курс' in data:
-        if 'PRIVMSG '+channel+' :!курс' in data:
-            where_mes_exc = channel
-        if 'PRIVMSG '+botName+' :!курс' in data:
-            where_mes_exc = name
+    #:nick!uname@addr.i2p PRIVMSG #ru :!курс
+    dataTokensDelimitedByWhitespace = data.split(" ")
+    #dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
+    #dataTokensDelimitedByWhitespace[1] PRIVMSG
+    #dataTokensDelimitedByWhitespace[2] #ru
+    #dataTokensDelimitedByWhitespace[3] :!курс
+    if (len(dataTokensDelimitedByWhitespace) > 3) and ('!курс' in dataTokensDelimitedByWhitespace[3]):
+        print('!курс')
+        communicationsLineName = dataTokensDelimitedByWhitespace[2]
+        where_mes_exc = communicationsLineName
+        print('курс куда слать будем:', where_mes_exc)
 
         try:
             #This example uses Python 2.7 and the python-request library.
@@ -405,24 +413,25 @@ while True:
             session.headers.update(headers)
             
             try:
+              print('!курс session.get url='+url)
               response = session.get(url, params=parameters)
               cmc = json.loads(response.text)
-              print(cmc)
+              print("cmc:", cmc)
+              btc_usd = cmc["data"]["BTC"]["quote"]["USD"]["price"]
+              eth_usd = cmc["data"]["ETH"]["quote"]["USD"]["price"]
+              btc_usd_str = str(btc_usd)
+              eth_usd_str = str(eth_usd)
+              
+              send_res_exc = '\x033Курс CoinMarketCap: \x02BTC/USD:\x02 '+btc_usd_str+' \x02ETH/USD:\x02 '+eth_usd_str+'\r\n'
+              print("send_res_exc:", send_res_exc)
+              print("where_mes_exc:", where_mes_exc)
+              send('PRIVMSG %s :%s\r\n'%(where_mes_exc,send_res_exc))
             except (ConnectionError, Timeout, TooManyRedirects) as e:
               print(e)
-        except:
-            print('Исключение api cmc: ?')
-        btc_usd = cmc["data"]["BTC"]["quote"]["USD"]["price"]
-        eth_usd = cmc["data"]["ETH"]["quote"]["USD"]["price"]
+        except (ConnectionError, Timeout, TooManyRedirects) as e:
+            print(e)
 
 
-        btc_usd_str = str(btc_usd)
-        eth_usd_str = str(eth_usd)
-
-        send_res_exc = '\x033Курс CoinMarketCap: \x02BTC/USD:\x02 '+btc_usd_str+' \x02ETH/USD:\x02 '+eth_usd_str+'\r\n'
-
-        send('PRIVMSG %s :%s\r\n'%(where_mes_exc,send_res_exc))
-    
     #------------Printing---------------
 
     print(data)
