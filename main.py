@@ -139,25 +139,23 @@ while True:
 
     keepingConnection=True
     while keepingConnection:
-        #try:
-        data = irc.recv(2048).decode("UTF-8")
-        print("rx:["+data+"]")
-        if data=="":
-            print("data=='', irc.close(), keepingConnection=False, iterate");
-            irc.close()
-            keepingConnection=False
+        try:
+            data = irc.recv(2048).decode("UTF-8")
+            print("rx:["+data+"]")
+            if data=="":
+                print("data=='', irc.close(), keepingConnection=False, iterate");
+                irc.close()
+                keepingConnection=False
+                continue
+        except UnicodeDecodeError as decodeException:
+            print("UnicodeDecodeError ", decodeException)
             continue
-
         tokens1 = data.split(" ");
         if len(tokens1)>1 and tokens1[1]=="433": #"Nickname is already in use" in data
             botNickSalt=botNickSalt+1
             botName = BOT_NAME_PREFIX+str(botNickSalt)
             send('NICK '+botName)
             continue
-
-        #except:
-        #    print("rx_except")
-        #    continue
         if data.find('PING') != -1:
             send('PONG '+data.split(" ")[1]+'\r\n')
 
@@ -452,4 +450,11 @@ while True:
             except (ConnectionError, Timeout, TooManyRedirects) as e:
                 print(e)
 
+
+
+
+
+#import urllib.request
+#contents = urllib.request.urlopen("https://api.exmo.me/v1/ticker").read()
+#print(contents)
 
