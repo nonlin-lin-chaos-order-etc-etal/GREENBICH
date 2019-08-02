@@ -1,4 +1,4 @@
-# MyIrcBot
+# IrcBot
 An irc bot. Speaks in Russian.
 
 Put the following into `local.json`:
