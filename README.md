@@ -1,8 +1,8 @@
 # MyIrcBot
 An irc bot. Speaks in Russian.
 
+Put the following into `local.json`:
 ```
-cat local.json 
 {
      "host":"127.0.0.1"
     ,"port":11111
