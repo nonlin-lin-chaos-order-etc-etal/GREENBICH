@@ -8,7 +8,7 @@ Put the following into `local.json`:
     ,"port":11111
     ,"channel":"#chan1,#chan2"
     ,"password": "password"
-    ,"coinmarketcap_apikey": "123-123-123-1234-278634287634"
+    ,"coinmarketcap_apikey": "123-123-123-1234-12345678"
     ,"titleEnabled":false
     ,"onlycmc":false
 }
