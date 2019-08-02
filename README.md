@@ -1,5 +1,5 @@
 # IrcBot
-An irc bot. Speaks in Russian.
+An irc bot. Speaks in Russian. Initially written by inexperienced programmer.
 
 Put the following into `local.json`:
 ```
