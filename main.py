@@ -80,6 +80,8 @@ onlycmc = bool(settings.settings('onlycmc'))
 enableother1 = not onlycmc
 gnome1rur = float(settings.settings('gnome1_rur_float'))
 gnomeBtcTransaction1 = float(settings.settings('gnome_btc_transaction1_BTC_float')) #BTC
+measurementRur1 = gnome1rur
+measurementRur2 = gnome1rur
 
 while True:
     print("---new iter---")
@@ -423,7 +425,7 @@ while True:
                 where_mes_exc = communicationsLineName
                 if where_mes_exc == botName: #/query
                     tokensNick1=dataTokensDelimitedByWhitespace[0].split("!");
-                    tokensNick1=tokensNick1[0].split[":"]
+                    tokensNick1=tokensNick1[0].split(":")
                     tokensNick1=tokensNick1[1]
                     where_mes_exc=tokensNick1
                 print('курс куда слать будем:', where_mes_exc)
@@ -491,8 +493,14 @@ while True:
 
                     if btcToRurFloat is not None:
                         gnome2rur = btcToRurFloat * gnomeBtcTransaction1
-                        gnomeDeltaRur = gnome2rur-gnome1rur
-                        gnomeHodlDeltaStr="%s%s руб. — %s" % ( ("+" if gnomeDeltaRur>=0 else "-") , format_currency(gnomeDeltaRur) , ("растёт денежка, растёт!" if gnomeDeltaRur>=0 else "убытки-с =( читаем книжку! http://knijka.i2p/"));
+                        gnomeDeltaGlobalRur = gnome2rur-gnome1rur
+                        measurementRur1=measurementRur2
+                        measurementRur2=gnome2rur
+                        gnomeDeltaLocalRur = measurementRur2-measurementRur1
+                        gnomeHodlDeltaStr="Всего выросло: %s%s руб. Локально: %s%s — %s" % ( \
+                                    ("+" if gnomeDeltaGlobalRur>=0 else "") , format_currency(gnomeDeltaGlobalRur) , \
+                                    ("+" if gnomeDeltaLocalRur>=0 else "") , format_currency(gnomeDeltaLocalRur) , \
+("растёт денежка, растёт!" if gnomeDeltaLocalRur>=0 else "убытки-с =( читаем книжку! http://knijka.i2p/"));
                     else:
                         gnomeHodlDeltaStr="??? руб.";
                     send_res_exc = '%s | %s | Гном.HODLER: %s' % (send_res_exc_cmc, ircProtocolDisplayText_exmo, gnomeHodlDeltaStr)
