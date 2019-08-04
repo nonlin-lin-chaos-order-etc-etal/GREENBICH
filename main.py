@@ -77,6 +77,8 @@ coinmarketcap_apikey = settings.settings('coinmarketcap_apikey')
 titleEnabled = bool(settings.settings('titleEnabled'))
 onlycmc = bool(settings.settings('onlycmc'))
 enableother1 = not onlycmc
+gnome1rur = float(settings.settings('gnome1_rur_float'))
+gnomeBtcTransaction1 = float(settings.settings('gnome_btc_transaction1_BTC_float')) #BTC
 
 while True:
     print("---new iter---")
@@ -476,9 +478,6 @@ while True:
                     except (ConnectionError, Timeout, TooManyRedirects) as e:
                       print(e)
 
-                    
-                    gnome1rur = float(settings.settings('gnome1_rur_float'))
-                    gnomeBtcTransaction1 = float(settings.settings('gnome_btc_transaction1_BTC_float')) #BTC
                     if btcToRurFloat is not None:
                         gnome2rur = btcToRurFloat * gnomeBtcTransaction1
                         gnomeDeltaRur = gnome2rur-gnome1rur
