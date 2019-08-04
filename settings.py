@@ -9,7 +9,7 @@ config = json.loads(data)
 #port = 7770
 #channel = '#magi'
 botName = 'BichBot'
-masterName = 'her1001'
+masterName = 'паук-нах'
 list_floodfree = ['Батый', 'Батый_', botName, masterName]
 list_bot_not_work = ['iphone.telenet.ru', 'ec2-54-211-164-67.compute-1.amazonaws.com']
 
