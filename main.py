@@ -12,6 +12,76 @@ LOG_TRACE = False
 def format_currency(value):
     return "{:0,.2f}".format(float(value))
 
+databuf = b''
+socket_closed = False
+def init_socket(client_socket):
+    global databuf
+    global socket_closed
+    databuf = b''
+    socket_closed = False
+
+def extract_line():
+    global databuf
+    global socket_closed
+    # socket must be closed for this call.
+    if not socket_closed: raise Exception
+
+    a = databuf.find(b'\r')
+    b = databuf.find(b'\n')
+    if a != -1 and b != -1: a = min(a, b)
+    if b != -1 and a == -1: a = b
+    if a != -1:
+        line = databuf[0:a]
+        if databuf[a]==b'\r':
+            a=a+1
+            if a<len(databuf) and databuf[a]==b'\n':
+                a=a+1
+        else:
+            if databuf[a]==b'\n':
+                a=a+1
+        databuf = databuf[a:] if a < len(databuf) else b''
+        return line
+    return databuf
+
+def extract_line_1():
+    global databuf
+    global socket_closed
+    a = databuf.find(b'\r')
+    b = databuf.find(b'\n')
+    if a != -1 and b != -1: a = min(a, b)
+    if b != -1 and a == -1: a = b
+    if a != -1:
+        if (databuf[a]==b'\r' and a < len(databuf)-1) or databuf[a]==b'\n':
+            line = databuf[0:a]
+            if databuf[a]==b'\r':
+                a=a+1
+                if databuf[a]==b'\n':
+                    a=a+1
+            else:
+                if databuf[a]==b'\n':
+                    a=a+1
+            databuf = databuf[a:]
+            return line
+        #else read more
+    #else read more
+    return None
+
+def get_line(client_socket):
+    global databuf
+    global socket_closed
+    if socket_closed:
+        return extract_line()
+    line = extract_line_1()
+    if line is not None: return line
+    while True:
+        r = client_socket.recv(81920)
+        if len(r) == 0:
+            socket_closed = True
+            return extract_line()
+        databuf += r
+        line = extract_line_1()
+        if line is not None: return line
+
 # Function shortening of ic.send.  
 def send(mes):
   return irc.send(bytes(mes,'utf-8'))
@@ -90,6 +160,7 @@ while True:
         irc = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
         print("connecting... network=["+network+"] port=["+str(port)+"]…")
         irc.connect ((network, port))
+        init_socket(irc)
         print("connected, sending login handshake, botName=["+botName+"]…")
         #print (irc.recv(2048).decode("UTF-8"))
         send('NICK '+botName+'\r\n')
@@ -149,7 +220,7 @@ while True:
         keepingConnection=True
         while keepingConnection:
             try:
-                data = irc.recv(2048).decode("UTF-8")
+                data = get_line(irc).decode("UTF-8")
                 print("rx:["+data+"]")
                 if data=="":
                     print("data=='', irc.close(), keepingConnection=False, iterate");
