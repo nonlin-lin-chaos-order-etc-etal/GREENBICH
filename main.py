@@ -86,10 +86,10 @@ def get_line(client_socket):
     while True:
         r = client_socket.recv(81920)
         if len(r) == 0:
-            print("EOF")
+            if LOG_TRACE: print("EOF")
             socket_closed = True
             return extract_line()
-        print("RX:", r)
+        if LOG_TRACE: print("RX:", r)
         databuf += r
         line = extract_line_1()
         if line is not None: return line
@@ -233,7 +233,7 @@ while True:
         while keepingConnection:
             try:
                 data = get_line(irc).decode("UTF-8")
-                if LOG_TRACE: print("got line:["+data+"]")
+                print("got line:["+data+"]")
                 if data=="":
                     print("data=='', irc.close(), keepingConnection=False, iterate");
                     irc.close()
