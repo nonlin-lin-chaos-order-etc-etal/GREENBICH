@@ -482,7 +482,7 @@ while True:
                     if btcToRurFloat is not None:
                         gnome2rur = btcToRurFloat * gnomeBtcTransaction1
                         gnomeDeltaRur = gnome2rur-gnome1rur
-                        gnomeHodlDeltaStr="%s%s руб." % ( ("+" if gnomeDeltaRur>=0 else "-") , format_currency(gnomeDeltaRur));
+                        gnomeHodlDeltaStr="%s%s руб. — %s" % ( ("+" if gnomeDeltaRur>=0 else "-") , format_currency(gnomeDeltaRur) , ("растёт денежка, растёт!" if gnomeDeltaRur>=0 else "убытки-с =( читаем книжку! http://knijka.i2p/"));
                     else:
                         gnomeHodlDeltaStr="??? руб.";
                     send_res_exc = '%s | %s | Гном.HODLER: %s' % (send_res_exc_cmc, ircProtocolDisplayText_exmo, gnomeHodlDeltaStr)
