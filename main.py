@@ -32,12 +32,12 @@ def extract_line():
     if b != -1 and a == -1: a = b
     if a != -1:
         line = databuf[0:a]
-        if databuf[a]==b'\r':
+        if databuf[a]==0xD:
             a=a+1
-            if a<len(databuf) and databuf[a]==b'\n':
+            if a<len(databuf) and databuf[a]==0xA:
                 a=a+1
         else:
-            if databuf[a]==b'\n':
+            if databuf[a]==0xA:
                 a=a+1
         databuf = databuf[a:] if a < len(databuf) else b''
         return line
@@ -46,24 +46,34 @@ def extract_line():
 def extract_line_1():
     global databuf
     global socket_closed
+    if LOG_TRACE: print("extract_line_1() #0: databuf", databuf, "socket_closed", socket_closed)
     a = databuf.find(b'\r')
     b = databuf.find(b'\n')
     if a != -1 and b != -1: a = min(a, b)
     if b != -1 and a == -1: a = b
     if a != -1:
-        if (databuf[a]==b'\r' and a < len(databuf)-1) or databuf[a]==b'\n':
+        if LOG_TRACE: print("#1: a:", a, "len(databuf):", len(databuf), "databuf[a]==b'SLASHr':", databuf[a]==0xD, "databuf[a]:", databuf[a], "a < len(databuf)-1:", a < len(databuf)-1)
+        if (databuf[a]==0xD and a < len(databuf)-1) or databuf[a]==0xA:
+            if LOG_TRACE: print("#2")
             line = databuf[0:a]
-            if databuf[a]==b'\r':
+            if databuf[a]==0xD:
+                if LOG_TRACE: print("#3")
                 a=a+1
-                if databuf[a]==b'\n':
+                if databuf[a]==0xA:
+                    if LOG_TRACE: print("#4")
                     a=a+1
             else:
-                if databuf[a]==b'\n':
+                if LOG_TRACE: print("#5")
+                if databuf[a]==0xA:
+                    if LOG_TRACE: print("#6")
                     a=a+1
+            if LOG_TRACE: print("#7, a:", a)
             databuf = databuf[a:]
+            if LOG_TRACE: print("returning line:", line)
             return line
         #else read more
     #else read more
+    if LOG_TRACE: print("returning None")
     return None
 
 def get_line(client_socket):
@@ -76,8 +86,10 @@ def get_line(client_socket):
     while True:
         r = client_socket.recv(81920)
         if len(r) == 0:
+            print("EOF")
             socket_closed = True
             return extract_line()
+        print("RX:", r)
         databuf += r
         line = extract_line_1()
         if line is not None: return line
@@ -221,7 +233,7 @@ while True:
         while keepingConnection:
             try:
                 data = get_line(irc).decode("UTF-8")
-                print("rx:["+data+"]")
+                if LOG_TRACE: print("got line:["+data+"]")
                 if data=="":
                     print("data=='', irc.close(), keepingConnection=False, iterate");
                     irc.close()
