@@ -477,8 +477,8 @@ while True:
                       print(e)
 
                     
-                    gnome1rur = 16000.0
-                    gnomeBtcTransaction1 = 0.02631094 #BTC
+                    gnome1rur = float(settings.settings('gnome1_rur_float'))
+                    gnomeBtcTransaction1 = float(settings.settings('gnome_btc_transaction1_BTC_float')) #BTC
                     if btcToRurFloat is not None:
                         gnome2rur = btcToRurFloat * gnomeBtcTransaction1
                         gnomeDeltaRur = gnome2rur-gnome1rur
