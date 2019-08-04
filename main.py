@@ -5,8 +5,9 @@ import requests
 import settings
 import translate_krzb
 import whois
-
 from urllib.parse import unquote
+
+LOG_TRACE = False
 
 def format_currency(value):
     return "{:0,.2f}".format(float(value))
@@ -272,20 +273,20 @@ while True:
                 try:
                     whois_ip = data.split('!где айпи ',1)[1].split('\r',1)[0].strip()
                     get_whois = whois.whois(whois_ip)
+                    print(get_whois)
                     country_whois = get_whois['country']
                     city_whois = get_whois['city']
                     address_whois = get_whois['address']    
-                    print(get_whois)
 
                     if country_whois == None:
-                        country_whois = 'None'
+                        country_whois = 'Unknown'
                     if city_whois == None:
-                        city_whois = 'None'
+                        city_whois = 'Unknown'
                     if address_whois == None:
-                        address_whois = 'None'    
+                        address_whois = 'Unknown'    
                                
                     whois_final_reply = ' \x02IP:\x02 '+whois_ip+' \x02Страна:\x02 '+\
-                    country_whois+' \x02Адресс:\x02 '+address_whois+'\r\n'
+                    country_whois+' \x02Адрес:\x02 '+address_whois+'\r\n'
                     send('PRIVMSG '+where_message_whois+' :'+whois_final_reply)            
 
                 except:
@@ -406,15 +407,25 @@ while True:
                 send(voting_results)
             
             #:nick!uname@addr.i2p PRIVMSG #ru :!курс
+            #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
             dataTokensDelimitedByWhitespace = data.split(" ")
             #dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
             #dataTokensDelimitedByWhitespace[1] PRIVMSG
+
             #dataTokensDelimitedByWhitespace[2] #ru
+            # OR
+            #dataTokensDelimitedByWhitespace[2] BichBot
+
             #dataTokensDelimitedByWhitespace[3] :!курс
             if (len(dataTokensDelimitedByWhitespace) > 3) and ('!курс' in dataTokensDelimitedByWhitespace[3]):
                 print('!курс')
                 communicationsLineName = dataTokensDelimitedByWhitespace[2]
                 where_mes_exc = communicationsLineName
+                if where_mes_exc == botName: #/query
+                    tokensNick1=dataTokensDelimitedByWhitespace[0].split("!");
+                    tokensNick1=tokensNick1[0].split[":"]
+                    tokensNick1=tokensNick1[1]
+                    where_mes_exc=tokensNick1
                 print('курс куда слать будем:', where_mes_exc)
 
                 try:
@@ -441,7 +452,7 @@ while True:
                       print('!курс session.get url='+url)
                       response = session.get(url, params=parameters)
                       cmc = json.loads(response.text)
-                      print("cmc:", cmc)
+                      if LOG_TRACE: print("cmc:", cmc)
                       btc_usd = cmc["data"]["BTC"]["quote"]["USD"]["price"]
                       eth_usd = cmc["data"]["ETH"]["quote"]["USD"]["price"]
                       btc_usd_str = str(format_currency(btc_usd))
@@ -461,7 +472,7 @@ while True:
                       print("querying %s"%(url,))
                       exmo_ticker = urllib.request.urlopen(url).read()
                       exmo_ticker = json.loads(exmo_ticker)
-                      print("exmo_ticker:", exmo_ticker)
+                      if LOG_TRACE: print("exmo_ticker:", exmo_ticker)
                       #"USD_RUB":{"buy_price":"63.520002", "sell_price":"63.7", "last_trade":"63.678587", "high":"64.21396756", "low":"63.35", "avg":"63.78778311", "vol":"281207.5729779", "vol_curr":"17906900.90093241", "updated":1564935589 }
                       #"BTC_RUB":{"buy_price":"692674.53013854","sell_price":"694990", "last_trade":"693302.09","high":"700000","low":"675000.00100102", "avg":"687445.89449801","vol":"223.90253022", "vol_curr":"155232092.15894149", "updated":1564935590 }
                       #exmo_BTC_RUB_json = exmo_ticker["BTC_RUB"]
