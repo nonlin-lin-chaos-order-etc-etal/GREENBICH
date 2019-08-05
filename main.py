@@ -162,8 +162,9 @@ onlycmc = bool(settings.settings('onlycmc'))
 enableother1 = not onlycmc
 gnome1rur = float(settings.settings('gnome1_rur_float'))
 gnomeBtcTransaction1 = float(settings.settings('gnome_btc_transaction1_BTC_float')) #BTC
-gnome_btc_amount2_BTC_float = float(settings.settings('gnome_btc_transaction1_BTC_float')) #BTC
-gnome1rur = gnome1rur + (gnome_btc_amount2_BTC_float - gnomeBtcTransaction1) * 9500.0 * 65.0
+gnome_btc_amount2_BTC_float = float(settings.settings('gnome_btc_amount2_BTC_float')) #BTC
+gnome1rur = gnome1rur + ((gnome_btc_amount2_BTC_float - gnomeBtcTransaction1) * 9500.0 * 65.0)
+print("gnome1rur:", gnome1rur);
 measurementRur1 = gnome1rur
 measurementRur2 = gnome1rur
 
@@ -582,6 +583,7 @@ while True:
                         measurementRur1=measurementRur2
                         measurementRur2=gnome2rur
                         gnomeDeltaLocalRur = measurementRur2-measurementRur1
+                        print("gnome_btc_amount2_BTC_float:", gnome_btc_amount2_BTC_float, "gnome2rur:", gnome2rur, "btcToRurFloat:", btcToRurFloat, "gnomeDeltaGlobalRur:", gnomeDeltaGlobalRur, "measurementRur1:", measurementRur1, "measurementRur2:", measurementRur2, "gnomeDeltaLocalRur:", gnomeDeltaLocalRur);
                         gnomeHodlDeltaStr="Всего выросло: %s%s руб. Локально: %s%s руб. — %s" % ( \
                                     ("+" if gnomeDeltaGlobalRur>=0 else "") , format_currency(gnomeDeltaGlobalRur) , \
                                     ("+" if gnomeDeltaLocalRur>=0 else "") , format_currency(gnomeDeltaLocalRur) , \
