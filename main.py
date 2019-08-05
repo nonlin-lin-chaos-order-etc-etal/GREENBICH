@@ -163,6 +163,7 @@ enableother1 = not onlycmc
 gnome1rur = float(settings.settings('gnome1_rur_float'))
 gnomeBtcTransaction1 = float(settings.settings('gnome_btc_transaction1_BTC_float')) #BTC
 gnome_btc_amount2_BTC_float = float(settings.settings('gnome_btc_amount2_BTC_float')) #BTC
+master_secret = settings.settings('master_secret')
 gnome1rur = gnome1rur + ((gnome_btc_amount2_BTC_float - gnomeBtcTransaction1) * 9500.0 * 65.0)
 print("gnome1rur:", gnome1rur);
 measurementRur1 = gnome1rur
@@ -509,12 +510,17 @@ while True:
                 print('!курс')
                 communicationsLineName = dataTokensDelimitedByWhitespace[2]
                 where_mes_exc = communicationsLineName
+                is_in_private_query = False
+                is_dialogue_with_master = False
                 if where_mes_exc == botName: #/query
+                    is_in_private_query = True
                     tokensNick1=dataTokensDelimitedByWhitespace[0].split("!");
                     tokensNick1=tokensNick1[0].split(":")
                     tokensNick1=tokensNick1[1]
                     where_mes_exc=tokensNick1
-                print('курс куда слать будем:', where_mes_exc)
+                    is_dialogue_with_master = (tokensNick1 == settings.settings("master_nick")) and (master_secret in dataTokensDelimitedByWhitespace[3])
+                    if is_dialogue_with_master: send('PRIVMSG %s :%s\r\n'%(where_mes_exc,"hello, Master!"))
+                print('курс куда слать будем:', where_mes_exc, "is_dialogue_with_master:", is_dialogue_with_master)
 
                 try:
                     #This example uses Python 2.7 and the python-request library.
@@ -577,7 +583,7 @@ while True:
                     except (ConnectionError, Timeout, TooManyRedirects) as e:
                       print(e)
 
-                    if btcToRurFloat is not None:
+                    if btcToRurFloat is not None and is_dialogue_with_master:
                         gnome2rur = btcToRurFloat * gnome_btc_amount2_BTC_float
                         gnomeDeltaGlobalRur = gnome2rur-gnome1rur
                         measurementRur1=measurementRur2
