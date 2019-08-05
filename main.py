@@ -576,8 +576,8 @@ while True:
                       exmo_BTC_USD_sell_price = exmo_BTC_USD_json["sell_price"]
                       btcToUsdFloat = float(exmo_BTC_USD_sell_price)
 
-                      btcToRurFloat = float(exmo_ticker["BTC_RUB"]["sell_price"])
-                      ircProtocolDisplayText_exmo = '\x033Курс Exmo: \x02BTC/USD \x02\x02sell price:\x02 '+str(format_currency(exmo_BTC_USD_sell_price))+', \x02buy price:\x02 '+str(format_currency(exmo_BTC_USD_json["buy_price"]))+"."
+                      btcToRurFloat = float(exmo_ticker["BTC_RUB"]["buy_price"])
+                      ircProtocolDisplayText_exmo = 'Курс Exmo: BTC/USD S '+str(format_currency(exmo_BTC_USD_sell_price))+' B '+str(format_currency(exmo_BTC_USD_json["buy_price"]))+" | BTC/RUR S "+str(format_currency(float(exmo_ticker["BTC_RUB"]["sell_price"])))+' B '+str(format_currency(float(exmo_ticker["BTC_RUB"]["buy_price"])))+"."
 
 
                     except (ConnectionError, Timeout, TooManyRedirects) as e:
