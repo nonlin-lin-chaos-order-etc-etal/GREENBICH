@@ -602,6 +602,12 @@ while True:
                     send('PRIVMSG %s :%s\r\n'%(where_mes_exc,send_res_exc))
                 except (ConnectionError, Timeout, TooManyRedirects) as e:
                     print(e)
+                except KeyError as e:
+                    print(e)
+                    send_res_exc = 'error in response json: %s' % str(e)
+                    print("send_res_exc:", send_res_exc)
+                    print("where_mes_exc:", where_mes_exc)
+                    send('PRIVMSG %s :%s\r\n'%(where_mes_exc,send_res_exc))
     except ConnectionResetError as e: #on write to socket?
         print("ConnectionResetError ", e)
         print("irc.close(), iterate");
