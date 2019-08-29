@@ -506,19 +506,23 @@ while True:
             #dataTokensDelimitedByWhitespace[2] BichBot
 
             #dataTokensDelimitedByWhitespace[3] :!курс
-            if (len(dataTokensDelimitedByWhitespace) > 3) and ('!курс' in dataTokensDelimitedByWhitespace[3]):
-                print('!курс')
-                communicationsLineName = dataTokensDelimitedByWhitespace[2]
-                where_mes_exc = communicationsLineName
-                is_in_private_query = False
+            communicationsLineName = dataTokensDelimitedByWhitespace[2]
+            where_mes_exc = communicationsLineName
+            if (len(dataTokensDelimitedByWhitespace) > 3):
+              line = " ".join(dataTokensDelimitedByWhitespace[3:])
+              is_in_private_query = where_mes_exc == botName
+              bot_mentioned = botName in line
+              commWithBot = is_in_private_query or bot_mentioned
+              kwKurs = 'курс' in line
+              if kwKurs and commWithBot:
+                print('курс')
                 is_dialogue_with_master = False
                 if where_mes_exc == botName: #/query
-                    is_in_private_query = True
-                    tokensNick1=dataTokensDelimitedByWhitespace[0].split("!");
+                    tokensNick1=dataTokensDelimitedByWhitespace[0].split("!")
                     tokensNick1=tokensNick1[0].split(":")
                     tokensNick1=tokensNick1[1]
                     where_mes_exc=tokensNick1
-                    is_dialogue_with_master = master_secret in dataTokensDelimitedByWhitespace[3]
+                    is_dialogue_with_master = master_secret in line
                     if is_dialogue_with_master: send('PRIVMSG %s :%s\r\n'%(where_mes_exc,"hello, Master!"))
                 print('курс куда слать будем:', where_mes_exc, "is_dialogue_with_master:", is_dialogue_with_master)
 
