@@ -506,15 +506,14 @@ while True:
             #dataTokensDelimitedByWhitespace[2] BichBot
 
             #dataTokensDelimitedByWhitespace[3] :!курс
-            communicationsLineName = dataTokensDelimitedByWhitespace[2]
+            communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
             where_mes_exc = communicationsLineName
-            if (len(dataTokensDelimitedByWhitespace) > 3):
+            if len(dataTokensDelimitedByWhitespace) > 3:
               line = " ".join(dataTokensDelimitedByWhitespace[3:])
               is_in_private_query = where_mes_exc == botName
               bot_mentioned = botName in line
               commWithBot = is_in_private_query or bot_mentioned
-              kwKurs = 'курс' in line
-              if kwKurs and commWithBot:
+              if 'курс' in line and commWithBot:
                 print('курс')
                 is_dialogue_with_master = False
                 if where_mes_exc == botName: #/query
