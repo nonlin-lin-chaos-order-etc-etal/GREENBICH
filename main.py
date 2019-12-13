@@ -96,6 +96,7 @@ def get_line(client_socket):
 
 # Function shortening of ic.send.  
 def send(mes):
+  print("send:"+mes)
   return irc.send(bytes(mes,'utf-8'))
 
 # Function of parcing of get TITLE from link.  
@@ -155,6 +156,7 @@ channel = settings.settings('channel')
 BOT_NAME_PREFIX = settings.settings('botName')
 botName = BOT_NAME_PREFIX
 botNickSalt = 0
+nickserv_password = settings.settings('nickserv_password')
 masterName = settings.settings('masterName')
 coinmarketcap_apikey = settings.settings('coinmarketcap_apikey')
 titleEnabled = bool(settings.settings('titleEnabled'))
@@ -250,7 +252,10 @@ while True:
             if len(tokens1)>1 and tokens1[1]=="433": #"Nickname is already in use" in data
                 botNickSalt=botNickSalt+1
                 botName = BOT_NAME_PREFIX+str(botNickSalt)
-                send('NICK '+botName)
+                send('NICK '+botName+'\r\n')
+                continue
+            if nickserv_password is not None and len(tokens1)>1 and tokens1[1]=="001": #001 nick :Welcome to the Internet Relay Network
+                send('NICKSERV IDENTIFY '+nickserv_password+'\r\n')
                 continue
             if data.find('PING') != -1:
                 send('PONG '+data.split(" ")[1]+'\r\n')
@@ -258,6 +263,7 @@ while True:
             #001 welcome
             spws = tokens1
             if len(spws) > 1 and spws[1]=="001":
+                send('MODE '+botName+' +x\r\n')
                 send('JOIN '+channel+' \r\n')
                 continue
             
@@ -273,8 +279,7 @@ while True:
             if enableother1:
                 #-----------Translate_krzb---------    
 
-                if 'PRIVMSG '+channel+' :!п ' in data \
-                   or 'PRIVMSG '+botName+' :!п ' in data:
+                if 'PRIVMSG '+channel+' :!п ' in data or 'PRIVMSG '+botName+' :!п ' in data:
                     if 'PRIVMSG '+channel+' :!п ' in data:
                         where_message = channel            
                     elif 'PRIVMSG '+botName+' :!п ' in data:

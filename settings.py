@@ -25,6 +25,6 @@ def settings(x):
     elif x == 'list_bot_not_work':
         return list_bot_not_work
     else:
-        return config[x]
+        return config[x] if x in config else None
 
 

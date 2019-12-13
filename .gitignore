@@ -105,3 +105,4 @@ venv.bak/
 
 local.json
 venv*
+nohup.out
