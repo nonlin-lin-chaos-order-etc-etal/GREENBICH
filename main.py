@@ -579,13 +579,16 @@ while True:
                       #"BTC_RUB":{"buy_price":"692674.53013854","sell_price":"694990", "last_trade":"693302.09","high":"700000","low":"675000.00100102", "avg":"687445.89449801","vol":"223.90253022", "vol_curr":"155232092.15894149", "updated":1564935590 }
                       #exmo_BTC_RUB_json = exmo_ticker["BTC_RUB"]
                       exmo_BTC_USD_json = exmo_ticker["BTC_USD"]
+                      exmo_ETH_USD_json = exmo_ticker["ETH_USD"]
                       #exmo_USD_RUB_json = exmo_ticker["USD_RUB"]
 
                       exmo_BTC_USD_sell_price = exmo_BTC_USD_json["sell_price"]
                       btcToUsdFloat = float(exmo_BTC_USD_sell_price)
-
                       btcToRurFloat = float(exmo_ticker["BTC_RUB"]["buy_price"])
-                      ircProtocolDisplayText_exmo = 'Курс Exmo: BTC/USD S '+str(format_currency(exmo_BTC_USD_sell_price))+' B '+str(format_currency(exmo_BTC_USD_json["buy_price"]))+" | BTC/RUR S "+str(format_currency(float(exmo_ticker["BTC_RUB"]["sell_price"])))+' B '+str(format_currency(float(exmo_ticker["BTC_RUB"]["buy_price"])))+"."
+                      ircProtocolDisplayText_exmo = 'Курс Exmo: '+ \
+                            'BTC/USD S '+str(format_currency(exmo_BTC_USD_sell_price))+' B '+str(format_currency(exmo_BTC_USD_json["buy_price"]))+" | "+ \
+                            'ETH/USD S '+str(format_currency(exmo_ETH_USD_json["sell_price"]))+' B '+str(format_currency(exmo_ETH_USD_json["buy_price"]))+" | "+ \
+                            "BTC/RUR S "+str(format_currency(float(exmo_ticker["BTC_RUB"]["sell_price"])))+' B '+str(format_currency(float(exmo_ticker["BTC_RUB"]["buy_price"])))+"."
 
 
                     except (ConnectionError, Timeout, TooManyRedirects) as e:
@@ -604,7 +607,7 @@ while True:
 ("растёт денежка, растёт!" if gnomeDeltaLocalRur>=0 else "убытки-с =( читаем книжку! http://knijka.i2p/"));
                     else:
                         gnomeHodlDeltaStr="??? руб.";
-                    send_res_exc = '%s | %s | Гном.HODLER: %s' % (send_res_exc_cmc, ircProtocolDisplayText_exmo, gnomeHodlDeltaStr)
+                    send_res_exc = '%s | %s' % (send_res_exc_cmc, ircProtocolDisplayText_exmo) #, gnomeHodlDeltaStr
                     print("send_res_exc:", send_res_exc)
                     print("where_mes_exc:", where_mes_exc)
                     send('PRIVMSG %s :%s\r\n'%(where_mes_exc,send_res_exc))
