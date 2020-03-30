@@ -1,4 +1,4 @@
-. ./venv1/bin/activate
+cd /home/user/git/ircbot_rusnet_bichbot/
 
-nohup bash -c "python3 main.py >/dev/null 2>&1" &
+. ./venv1/bin/activate && nohup python3 launch_all.py &
 

@@ -1,103 +1,28 @@
 import socket
+import socks
 import sys
 import time
 import requests
 import settings
 import translate_krzb
 import whois
+import json
 from urllib.parse import unquote
+from urllib.parse import quote as urlencode
+from settings import settings as option
+from threading import Thread
 
 LOG_TRACE = False
 
-def format_currency(value):
-    return "{:0,.2f}".format(float(value))
+from pytrends.request import TrendReq
+pytrends = TrendReq(hl='ru-RU', tz=360)
 
-databuf = b''
-socket_closed = False
-def init_socket(client_socket):
-    global databuf
-    global socket_closed
-    databuf = b''
-    socket_closed = False
+def get_interest_by_country(country):
+    return pytrends.interest_by_region(resolution='COUNTRY', inc_low_vol=True, inc_geo_code=False)
 
-def extract_line():
-    global databuf
-    global socket_closed
-    # socket must be closed for this call.
-    if not socket_closed: raise Exception
+def get_trending_searches(country_str, kwlist=None):
+    return pytrends.trending_searches(pn=country_str).to_numpy()
 
-    a = databuf.find(b'\r')
-    b = databuf.find(b'\n')
-    if a != -1 and b != -1: a = min(a, b)
-    if b != -1 and a == -1: a = b
-    if a != -1:
-        line = databuf[0:a]
-        if databuf[a]==0xD:
-            a=a+1
-            if a<len(databuf) and databuf[a]==0xA:
-                a=a+1
-        else:
-            if databuf[a]==0xA:
-                a=a+1
-        databuf = databuf[a:] if a < len(databuf) else b''
-        return line
-    return databuf
-
-def extract_line_1():
-    global databuf
-    global socket_closed
-    if LOG_TRACE: print("extract_line_1() #0: databuf", databuf, "socket_closed", socket_closed)
-    a = databuf.find(b'\r')
-    b = databuf.find(b'\n')
-    if a != -1 and b != -1: a = min(a, b)
-    if b != -1 and a == -1: a = b
-    if a != -1:
-        if LOG_TRACE: print("#1: a:", a, "len(databuf):", len(databuf), "databuf[a]==b'SLASHr':", databuf[a]==0xD, "databuf[a]:", databuf[a], "a < len(databuf)-1:", a < len(databuf)-1)
-        if (databuf[a]==0xD and a < len(databuf)-1) or databuf[a]==0xA:
-            if LOG_TRACE: print("#2")
-            line = databuf[0:a]
-            if databuf[a]==0xD:
-                if LOG_TRACE: print("#3")
-                a=a+1
-                if databuf[a]==0xA:
-                    if LOG_TRACE: print("#4")
-                    a=a+1
-            else:
-                if LOG_TRACE: print("#5")
-                if databuf[a]==0xA:
-                    if LOG_TRACE: print("#6")
-                    a=a+1
-            if LOG_TRACE: print("#7, a:", a)
-            databuf = databuf[a:]
-            if LOG_TRACE: print("returning line:", line)
-            return line
-        #else read more
-    #else read more
-    if LOG_TRACE: print("returning None")
-    return None
-
-def get_line(client_socket):
-    global databuf
-    global socket_closed
-    if socket_closed:
-        return extract_line()
-    line = extract_line_1()
-    if line is not None: return line
-    while True:
-        r = client_socket.recv(81920)
-        if len(r) == 0:
-            if LOG_TRACE: print("EOF")
-            socket_closed = True
-            return extract_line()
-        if LOG_TRACE: print("RX:", r)
-        databuf += r
-        line = extract_line_1()
-        if line is not None: return line
-
-# Function shortening of ic.send.  
-def send(mes):
-  print("send:"+mes)
-  return irc.send(bytes(mes,'utf-8'))
 
 # Function of parcing of get TITLE from link.  
 def link_title(n):
@@ -145,484 +70,932 @@ def link_title(n):
                    ('https://','').strip()
         else:
             return 'Title not found'
-          
-# Install min & max timer vote.  
-min_timer = 30
-max_timer = 300
 
-network = settings.settings('network')
-port = int(settings.settings('port'))
-channel = settings.settings('channel')
-BOT_NAME_PREFIX = settings.settings('botName')
-botName = BOT_NAME_PREFIX
-botNickSalt = 0
-nickserv_password = settings.settings('nickserv_password')
-masterName = settings.settings('masterName')
-coinmarketcap_apikey = settings.settings('coinmarketcap_apikey')
-titleEnabled = bool(settings.settings('titleEnabled'))
-onlycmc = bool(settings.settings('onlycmc'))
-enableother1 = not onlycmc
-gnome1rur = float(settings.settings('gnome1_rur_float'))
-gnomeBtcTransaction1 = float(settings.settings('gnome_btc_transaction1_BTC_float')) #BTC
-gnome_btc_amount2_BTC_float = float(settings.settings('gnome_btc_amount2_BTC_float')) #BTC
-master_secret = settings.settings('master_secret')
-gnome1rur = gnome1rur + ((gnome_btc_amount2_BTC_float - gnomeBtcTransaction1) * 9500.0 * 65.0)
-print("gnome1rur:", gnome1rur);
-measurementRur1 = gnome1rur
-measurementRur2 = gnome1rur
+def latest_news_newsapi_org():
+    apikey=option("newsapi_apikey")
+    url="http://newsapi.org/v2/top-headlines?country=ru&apiKey=%s" % apikey
+    resp = requests.get(url=url)
+    rjson = resp.json()
+    print("ns_resp",json.dumps(rjson, sort_keys=True, indent=4))
+    if "articles" in rjson:
+        arts = rjson["articles"]
+        if arts is None: return []
+        return arts
+    return []
 
-while True:
-    print("---new iter---")
-    try:
-        print("new socket(AF_INET,SOCK_STREAM)")
-        irc = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
-        print("connecting... network=["+network+"] port=["+str(port)+"]…")
-        irc.connect ((network, port))
-        init_socket(irc)
-        print("connected, sending login handshake, botName=["+botName+"]…")
-        #print (irc.recv(2048).decode("UTF-8"))
-        send('NICK '+botName+'\r\n')
-        send('USER '+botName+' '+botName+' '+botName+' :ircbot\r\n')
-        #send('NickServ IDENTIFY '+settings.settings('password')+'\r\n')
-        #send('MODE '+botName+' +x')
+def latest_news_google_news_ru():
+    apikey=option("newsapi_apikey")
+    url="http://newsapi.org/v2/top-headlines?sources=google-news-ru&apiKey=%s" % apikey
+    resp = requests.get(url=url)
+    rjson = resp.json()
+    print("ns_resp",json.dumps(rjson, sort_keys=True, indent=4))
+    if "articles" in rjson:
+        arts = rjson["articles"]
+        if arts is None: return []
+        return arts
+    return []
+  
 
-        #-------Global_variables--------------------
-           
-        name = ''
-        message = ''
-        message_voting = ''
-        voting_results = ''
+def format_currency(value):
+    return "{:0,.2f}".format(float(value))
 
-        count_voting = 0
-        count_vote_plus = 0
-        count_vote_minus = 0
-        count_vote_all = 0
-        while_count = 0
+def fetch_last_hour_new_news(old_news_cache=None, kwlist=None):
+    array = get_trending_searches(country_str="russia", kwlist=kwlist)
+    newer = []
+    for lines in array:
+        line = lines[0]
+        if line is None: continue
+        if line in old_news_cache: continue
+        newer.append(line)
+    return newer
 
-        btc_usd = 0
-        eth_usd = 0
-        usd_rub = 0
-        eur_rub = 0
-        btc_rub = 0
-        btc_usd_old = 0
-        eth_usd_old = 0
-        usd_rub_old = 0
-        eur_rub_old = 0
-        btc_rub_old = 0
-        btc_usd_su = str('')
-        eth_usd_su = str('')
-        usd_rub_su = str('')
-        eur_rub_su = str('')
-        time_vote = 0
+def is_news_command(bot_nick, str_line):
+    #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
+    dataTokensDelimitedByWhitespace = str_line.split(" ")
+    #dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
+    #dataTokensDelimitedByWhitespace[1] PRIVMSG
 
-        whois_ip = ''
-        whois_ip_get_text = ''
+    #dataTokensDelimitedByWhitespace[2] #ru
+    # OR
+    #dataTokensDelimitedByWhitespace[2] BichBot
 
-        timer_exc = 0
-        time_exc = 0
+    #dataTokensDelimitedByWhitespace[3] :!курс
+    communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
+    where_mes_exc = communicationsLineName
+    if len(dataTokensDelimitedByWhitespace) > 3:
+        line = " ".join(dataTokensDelimitedByWhitespace[3:])
+        is_in_private_query = where_mes_exc == bot_nick
+        bot_mentioned = bot_nick in line
+        commWithBot = is_in_private_query or bot_mentioned
+        return commWithBot and ("news" in line or "новости" in line) or ("!news" in line or "!новости" in line)
+    else:
+        return False
 
-        where_mes_exc = ''
-        t2 = 0
+def is_search_command(bot_nick, str_line):
+    #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
+    dataTokensDelimitedByWhitespace = str_line.split(" ")
+    #dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
+    #dataTokensDelimitedByWhitespace[1] PRIVMSG
 
-        #-------Massives----------------------------
+    #dataTokensDelimitedByWhitespace[2] #ru
+    # OR
+    #dataTokensDelimitedByWhitespace[2] BichBot
 
-        dict_users = {}
-        dict_count = {}
-        dict_voted = {}
-        list_vote_ip = []
+    #dataTokensDelimitedByWhitespace[3] :!курс
+    communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
+    where_mes_exc = communicationsLineName
+    if len(dataTokensDelimitedByWhitespace) > 3:
+        line = " ".join(dataTokensDelimitedByWhitespace[3:])
+        is_in_private_query = where_mes_exc == bot_nick
+        bot_mentioned = bot_nick in line
+        commWithBot = is_in_private_query or bot_mentioned
+        return commWithBot and ("search" in line or "поиск" in line) or ("!search" in line or "!поиск" in line)
+    else:
+        return False
 
-        # List who free from anti-flood function.
-        list_floodfree = settings.settings('list_floodfree')
-        list_bot_not_work = settings.settings('list_bot_not_work')
+def is_search_command2(bot_nick, str_line):
+    #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
+    dataTokensDelimitedByWhitespace = data.split(" ")
+    #dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
+    #dataTokensDelimitedByWhitespace[1] PRIVMSG
 
-        keepingConnection=True
-        while keepingConnection:
-            try:
-                data = get_line(irc).decode("UTF-8")
-                print("got line:["+data+"]")
-                if data=="":
-                    print("data=='', irc.close(), keepingConnection=False, iterate");
-                    irc.close()
-                    keepingConnection=False
-                    continue
-            except UnicodeDecodeError as decodeException:
-                print("UnicodeDecodeError ", decodeException)
-                continue
-            tokens1 = data.split(" ");
-            if len(tokens1)>1 and tokens1[1]=="433": #"Nickname is already in use" in data
-                botNickSalt=botNickSalt+1
-                botName = BOT_NAME_PREFIX+str(botNickSalt)
-                send('NICK '+botName+'\r\n')
-                continue
-            if nickserv_password is not None and len(tokens1)>1 and tokens1[1]=="001": #001 nick :Welcome to the Internet Relay Network
-                send('NICKSERV IDENTIFY '+nickserv_password+'\r\n')
-                continue
-            if data.find('PING') != -1:
-                send('PONG '+data.split(" ")[1]+'\r\n')
+    #dataTokensDelimitedByWhitespace[2] #ru
+    # OR
+    #dataTokensDelimitedByWhitespace[2] BichBot
 
-            #001 welcome
-            spws = tokens1
-            if len(spws) > 1 and spws[1]=="001":
-                send('MODE '+botName+' +x\r\n')
-                send('JOIN '+channel+' \r\n')
-                continue
-            
-            # Make variables Name, Message, IP from user message.
-            if data.find('PRIVMSG') != -1:
-                name = data.split('!',1)[0][1:]
-                message = data.split('PRIVMSG',1)[1].split(':',1)[1]
-            try:
-                ip_user=None#"data.split('@',1)[1].split(' ',1)[0]
-            except:
-                print('error getting ip_user')
+    #dataTokensDelimitedByWhitespace[3] :!курс
+    communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
+    where_mes_exc = communicationsLineName
+    if len(dataTokensDelimitedByWhitespace) > 3:
+        line = " ".join(dataTokensDelimitedByWhitespace[3:])
+        is_in_private_query = where_mes_exc == bot_nick
+        bot_mentioned = bot_nick in line
+        commWithBot = is_in_private_query or bot_mentioned
+        return commWithBot and ("search2" in line or "поиск2" in line) or ("!search2" in line or "!поиск2" in line)
+    else:
+        return False
 
-            if enableother1:
-                #-----------Translate_krzb---------    
+class MyPingsToServerThread(Thread):
+    def __init__(self, myBot):
+        Thread.__init__(self)
+        self.myBot = myBot
+    
+    def run(self):
+        self.myBot.pinger_of_server()
 
-                if 'PRIVMSG '+channel+' :!п ' in data or 'PRIVMSG '+botName+' :!п ' in data:
-                    if 'PRIVMSG '+channel+' :!п ' in data:
-                        where_message = channel            
-                    elif 'PRIVMSG '+botName+' :!п ' in data:
-                        where_message = name
-                    
-                    tr_txt = message.split('!п ',1)[1].strip()
-                    res_txt = translate_krzb.tr(tr_txt)
-                    send('PRIVMSG '+where_message+' :\x02перевод с кракозябьечьего:\x02 '+res_txt+'\r\n')
+class MyBot:
 
-            #-----------Bot_help---------------
+    def connection_settings(self, key2):
+        return self.connection_settings_dict()[key2]
 
-            if 'PRIVMSG '+channel+' :!help' in data or 'PRIVMSG '+botName+' :!справка' in data or 'PRIVMSG '+botName+' :!помощь' in data or 'PRIVMSG '+botName+' :!хелп' in data:
-                send('NOTICE %s : Помощь по командам бота:\r\n' %(name))
-                send('NOTICE %s : ***Функция опроса: [!опрос (число) сек (тема опрос)], например\
-        (пишем без кавычек: \"!опрос 60 сек Вы любите ониме?\", если не писать время, то время\
-        установится на 60 сек\r\n' %(name))
-                send('NOTICE %s : ***Функция курса: просто пишите (без кавычек): \"!курс\". Писать\
-        можно и в приват боту\r\n' %(name))
-                send('NOTICE %s : ***Функция whois: что бы узнать расположение IP, просто пишите\
-        (без кавычек): \"!где айпи (IP)\", пример: \"!где айпи \
-        188.00.00.01\". Писать можно и в приват к боту\r\n' %(name))
-                send('NOTICE %s : ***Функция перевода с английских букв на русские: \"!п tekst perevoda\", пример: \"!п ghbdtn\r\n' %(name))
+    def connection_option(self, key2):
+        return self.connection_settings(key2)
 
-            #-----------Anti_flood-------------
+    def connection_setting_or_None(self, key2):
+        dic = self.connection_settings_dict()
+        return dic[key2] if key2 in dic else None
 
-            # Count of while.  
-            while_count += 1
-            if while_count == 50:
-                while_count = 0
-                dict_count = {}
-                    
-            # Insert nick in dict: dic_count.  
-            if data.find('PRIVMSG') != -1 and name not in dict_count and\
-               name not in list_floodfree:
-                dict_count[name] = int(1)
-                if 'PRIVMSG '+channel in data:
-                    where_message = channel
-                elif 'PRIVMSG '+botName in data:
-                    where_message = botName
-            
-            # If new message as last message: count +1.  
-            if data.find('PRIVMSG') != -1 and message == dict_users.get(name)\
-               and name not in list_floodfree:
-                dict_count[name] += int(1)
-            
-            # Add key and value in massiv.  
-            if data.find('PRIVMSG') != -1 and name not in list_floodfree:
-                dict_users[name] = message
-            
-            # Message about flood and kick. 
-            #if data.find('PRIVMSG') != -1 and name not in list_floodfree:
-            #    for key in dict_count: 
-            #        if dict_count[key] == 3 and key != 'none':
-            #            send('PRIVMSG '+where_message+' :'+key+', Прекрати флудить!\r\n')
-            #            dict_count[key] += 1
-            #        elif dict_count[key] > 5 and key != 'none':
-            #            send('KICK '+channel+' '+key+' :Я же сказал не флуди!\r\n')
-            #            dict_count[key] = 0
-                    
-              
-            # Out command.  
-            if data.find('PRIVMSG '+channel+' :!quit') != -1 and name == masterName:
-                send('PRIVMSG '+channel+' :Хорошо, всем счастливо оставаться!\r\n')
-                send('QUIT\r\n')
-                sys.exit()
+    def connection_settings_dict(self):
+        return option(self.settings_key)
 
-            # Message per bot.  
-            if "PRIVMSG %s :!напиши "%(channel) in data or\
-               "PRIVMSG %s :!напиши "%(botName) in data and name == masterName:
-                mes_per_bot = message.split('!напиши ',1)[1]
-                send(mes_per_bot)
-                
-            #---------Whois service--------------------------
+    def __init__(self, settings_key):
+        self.settings_key = settings_key
 
-            if enableother1:
-              if 'PRIVMSG '+channel+' :!где айпи' in data\
-               or 'PRIVMSG '+botName+' :!где айпи' in data:
+        self.irc_server_hostname = self.connection_settings('irc_server_hostname')
+        self.port = int(self.connection_settings('port'))
+        self.channelsProps = self.connection_settings('channelsProps')
+        self.channelsList = list(self.channelsProps.keys())
+        self.BOT_NAME_PREFIX = self.connection_settings('InitialBotNick')
+        self.botName = self.BOT_NAME_PREFIX
+        self.botNickSalt = 0
+        self.nickserv_password = self.connection_setting_or_None('nickserv_password')
+        self.coinmarketcap_apikey = settings.settings('coinmarketcap_apikey')
+        self.rapidapi_appkey = settings.settings('rapidapi_appkey')
+        self.titleEnabled = bool(self.connection_settings('titleEnabled'))
+        self.onlycmc = bool(self.connection_settings('onlycmc'))
+        self.enableother1 = not self.onlycmc
+        self.gnome1rur = float(settings.settings('gnome1_rur_float'))
+        self.gnomeBtcTransaction1 = float(settings.settings('gnome_btc_transaction1_BTC_float')) #BTC
+        self.gnome_btc_amount2_BTC_float = float(settings.settings('gnome_btc_amount2_BTC_float')) #BTC
+        self.master_secret = settings.settings('master_secret')
+        self.gnome1rur = self.gnome1rur + ((self.gnome_btc_amount2_BTC_float - self.gnomeBtcTransaction1) * 9500.0 * 65.0)
+        self.measurementRur1 = self.gnome1rur
+        self.measurementRur2 = self.gnome1rur
 
-                if 'PRIVMSG '+channel+' :!где айпи' in data:
-                    where_message_whois = channel
-                    
-                elif 'PRIVMSG '+botName+' :!где айпи' in data:
-                    where_message_whois = name
-                              
-                try:
-                    whois_ip = data.split('!где айпи ',1)[1].split('\r',1)[0].strip()
-                    get_whois = whois.whois(whois_ip)
-                    print(get_whois)
-                    country_whois = get_whois['country']
-                    city_whois = get_whois['city']
-                    address_whois = get_whois['address']    
+    old_news_cache={}
+    old_news_cache_index={}
 
-                    if country_whois == None:
-                        country_whois = 'Unknown'
-                    if city_whois == None:
-                        city_whois = 'Unknown'
-                    if address_whois == None:
-                        address_whois = 'Unknown'    
-                               
-                    whois_final_reply = ' \x02IP:\x02 '+whois_ip+' \x02Страна:\x02 '+\
-                    country_whois+' \x02Адрес:\x02 '+address_whois+'\r\n'
-                    send('PRIVMSG '+where_message_whois+' :'+whois_final_reply)            
+    def web_search(self, query_str, number_of_results):
+        pageNumber=1
+        url="https://contextualwebsearch-websearch-v1.p.rapidapi.com/api/Search/WebSearchAPI?q=%s&pageNumber=%s&pageSize=%s&autocorrect=true&safeSearch=true" % \
+            (urlencode(query_str),str(pageNumber),str(number_of_results))
+        headers = {'User-agent': 'bichbot/0.0.1',"X-RapidAPI-Host":"contextualwebsearch-websearch-v1.p.rapidapi.com","X-RapidAPI-Key":self.rapidapi_appkey}
+        resp = requests.get(url=url, headers=headers)
+        rjson = resp.json()
+        print("ws_resp",json.dumps(rjson, sort_keys=True, indent=4))
+        for v in rjson["value"]: return v["url"]
+        return None
 
-                except:
-                    print('get Value Error in whois service!')
-                    send('PRIVMSG '+where_message_whois+' :Ошибка! Вводите только IP адрес \
-        из цифр, разделенных точками!\r\n')
-                             
-            #---------Info from link in channel-------------
-            
-            if enableother1 and titleEnabled:
-                if 'PRIVMSG %s :'%(channel) in data and '.png' not in data and '.jpg' not in data and '.doc'\
-                not in data and 'tiff' not in data and 'gif' not in data and '.jpeg' not in data and '.pdf' not in data:
-                    if 'http://' in data or 'https://' in data or 'www.' in data:
-                        try:
-                           send('PRIVMSG %s :%s\r\n'%(channel,link_title(data)))
-                        except requests.exceptions.ConnectionError:
-                            print('Ошибка получения Title (requests.exceptions.ConnectionError)')
-                            send('PRIVMSG '+channel+' :Ошибка, возможно такого адреса нет\r\n')
-                        except:
-                            print('Error link!')  
-            #---------Voting--------------------------------
-                        
-            t = time.time()
-            if enableother1:
-              if '!стоп опрос' in data and 'PRIVMSG' in data and name == masterName:
-                t2 = 0
-                print('счетчик опроса сброшен хозяином!')
-            if enableother1:
-              if 'PRIVMSG '+channel+' :!опрос ' in data and ip_user not in list_bot_not_work:
-                if t2 == 0 or t > t2+time_vote:
-                    if ' сек ' not in data:
-                        time_vote = 60
-                        # Make variable - text-voting-title form massage.  
-                        message_voting = message.split('!опрос',1)[1].strip()
-                    if ' сек ' in data:
-                        try:
-                            # Get time of timer from user message.  
-                            time_vote = int(message.split('!опрос',1)[1].split('сек',1)[0].strip())
-                            # Make variable - text-voting-title form massage.  
-                            message_voting = message.split('!опрос',1)[1].split('сек',1)[1].strip()
-                        except:
-                            time_vote = 60
-                            # Make variable - text-voting-title form massage.  
-                            message_voting = message.split('!опрос',1)[1].strip()
+    def web_search2(self, query_str, number_of_results):
+        search2RestClient=Search2RestClient(option("dataforseo_api_login"), option("dataforseo_api_password"))
+        resp_json = search2RestClient.get(path)
 
-                    if min_timer>time_vote or max_timer<time_vote:
-                        send('PRIVMSG %s :Ошибка ввода таймера голосования.\
-        Введите от %s до %s сек!\r\n'%(channel,min_timer,max_timer))
-                        continue
-                    
-                    t2 = time.time()
-                    count_vote_plus = 0
-                    count_vote_minus = 0
-                    vote_all = 0
-                    count_voting = 0
-                    list_vote_ip = []
-                    # Do null voting massiv.  
-                    dict_voted = {}
-                    send('PRIVMSG %s :Начинается опрос: \"%s\". Опрос будет идти \
-        %d секунд. Чтобы ответить "да", пишите: \"!да\" \
-        ", чтобы ответить "нет", пишите: \"!нет\". Писать можно как открыто в канал,\
-        так и в приват боту, чтобы голосовать анонимно \r\n' % (channel,message_voting,time_vote))
-                    list_vote_ip = []
-                        
-            # If find '!да' count +1.  
-            if enableother1:
-              if data.find('PRIVMSG '+channel+' :!да') != -1 or data.find('PRIVMSG '+botName+' :!да') != -1:
-                if ip_user not in list_vote_ip and t2 != 0:
-                    count_vote_plus +=1
-                    dict_voted[name] = 'yes'
-                    list_vote_ip.append(ip_user)
-                    # Make notice massage to votes user.  
-                    send('NOTICE '+name+' :Ваш ответ \"да\" учтен!\r\n')
 
-            # If find '!нет' count +1.  
-            if enableother1:
-              if data.find('PRIVMSG '+channel+' :!нет') != -1 or data.find('PRIVMSG '+botName+' :!нет') != -1:
-                if ip_user not in list_vote_ip and t2 != 0:
-                    count_vote_minus +=1
-                    dict_voted[name] = 'no'
-                    list_vote_ip.append(ip_user)
-                    # Make notice massage to votes user.  
-                    send('NOTICE '+name+' :Ваш ответ \"нет\" учтен!\r\n')
-           
-            # If masterName send '!список голосования': send to him privat messag with dictonary Who How voted.  
-            if enableother1:
-              if data.find('PRIVMSG '+botName+' :!список опроса') !=-1 and name == masterName:
-                for i in dict_voted:
-                    send('PRIVMSG '+masterName+' : '+i+': '+dict_voted[i]+'\r\n')
+        pageNumber=1
+        url="https://contextualwebsearch-websearch-v1.p.rapidapi.com/api/Search/WebSearchAPI?q=%s&pageNumber=%s&pageSize=%s&autocorrect=true&safeSearch=true" % \
+            (urlencode(query_str),str(pageNumber),str(number_of_results))
+        headers = {'User-agent': 'bichbot/0.0.1',"X-RapidAPI-Host":"contextualwebsearch-websearch-v1.p.rapidapi.com","X-RapidAPI-Key":self.rapidapi_appkey}
+        resp = requests.get(url=url, headers=headers)
+        rjson = resp.json()
+        print("ws_resp",json.dumps(rjson, sort_keys=True, indent=4))
+        for v in rjson["value"]: return v["url"]
+        return None
 
-            # Count how much was message in channel '!голосование'.  
-            if enableother1:
-              if data.find('PRIVMSG '+channel+' :!опрос') != -1 and t2 != 0:
-                count_voting += 1
+    def news_search_ctxwebsrch(self, query_str, number_of_results):
+        pageNumber=1
+        url="https://contextualwebsearch-websearch-v1.p.rapidapi.com/api/Search/NewsSearchAPI?q=%s&pageNumber=%s&pageSize=%s&autocorrect=true&safeSearch=true" % \
+            (urlencode(query_str),str(pageNumber),str(number_of_results))
+        headers = {'User-agent': 'bichbot/0.0.1',"X-RapidAPI-Host":"contextualwebsearch-websearch-v1.p.rapidapi.com","X-RapidAPI-Key":self.rapidapi_appkey}
+        resp = requests.get(url=url, headers=headers)
+        rjson = resp.json()
+        print("ns_resp",json.dumps(rjson, sort_keys=True, indent=4))
+        for v in rjson["value"]: return v["url"]
+        return None
 
-            # If voting is not end, and users send '!голосование...': send message in channel.  
-            t4 = time.time()
-            if enableother1:
-              if data.find('PRIVMSG '+channel+' :!опрос') != -1 and t4-t2 > 5:
-                t3 = time.time()
-                time_vote_rest_min = (time_vote-(t3-t2))//60
-                time_vote_rest_sec = (time_vote-(t3-t2))%60
-                if (time_vote-(t3-t2)) > 0:
-                    send('PRIVMSG %s : Предыдущий опрос: \"%s\" ещё не окончен, до окончания \
-        опроса осталось: %d мин %d сек\r\n \
-        ' % (channel,message_voting,time_vote_rest_min,time_vote_rest_sec))
+    def sendmsg(self, to_addr,msg):
+        self.send('PRIVMSG %s :%s\r\n'%(to_addr,msg))
 
-            # Make variable message rusults voting.  
-            vote_all = count_vote_minus + count_vote_plus
-            voting_results = 'PRIVMSG %s : результаты опроса: \"%s\", "Да" ответило: %d \
-        человек(а), "Нет" ответило: %d человек(а), Всего ответило: %d человек(а) \
-        \r\n' % (channel, message_voting, count_vote_plus, count_vote_minus, vote_all)
+    def print_new_news_googletrends(self, to_addr, kwlist=None):
+        old_news_cache = self.old_news_cache
+        if to_addr in old_news_cache:
+            cache = old_news_cache[to_addr]
+        else:
+            cache={}
+            old_news_cache[to_addr]=cache
+        array_of_strings = fetch_last_hour_new_news(cache,kwlist=kwlist)
+        cnt = get_news_count_for_channel(to_addr)
+        sent = 0
+        index = 0
+        for line in array_of_strings:
+            if line is None: continue
+            resultUrl = news_search(line,1)
+            self.sendmsg(to_addr, "%s: %s %s" % (str((index+1)),line,resultUrl if resultUrl else ""))
+            cache[line] = {"recently_sent":True}
+            sent=sent+1
+            index=index+1
+            if sent >= cnt: break
+        if sent == 0: self.sendmsg(to_addr, "Нет новостей у меня")
 
-            # When voting End: send to channel ruselts and time count to zero.  
-            if t-t2 > time_vote and t2 != 0:
-                t2 = 0
-                send('PRIVMSG '+channel+' : Опрос окончен!\r\n')
-                send(voting_results)
-            
-            #:nick!uname@addr.i2p PRIVMSG #ru :!курс
-            #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
-            dataTokensDelimitedByWhitespace = data.split(" ")
-            #dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
-            #dataTokensDelimitedByWhitespace[1] PRIVMSG
+    def print_new_news_newsapi_org(self, to_addr):
+        old_news_cache = self.old_news_cache
+        old_news_cache_index = self.old_news_cache_index
+        if to_addr in old_news_cache:
+            cache = old_news_cache[to_addr]
+        else:
+            cache={}
+            old_news_cache[to_addr]=cache
+        if to_addr in old_news_cache_index:
+            cache_index = old_news_cache_index[to_addr]
+        else:
+            cache_index=[]
+            old_news_cache_index[to_addr]=cache_index
+        arts = latest_news_newsapi_org() + latest_news_google_news_ru()
 
-            #dataTokensDelimitedByWhitespace[2] #ru
-            # OR
-            #dataTokensDelimitedByWhitespace[2] BichBot
+        cnt = self.get_news_count_for_channel(to_addr)
+        sent = 0
+        index = 0
+        for a in arts:
+            if a is None: continue
+            url = a["url"]
+            if url in cache: continue
+            self.sendmsg(to_addr, "%s %s" % ( str(url), str(a["title"]) ))
+            cache[url] = True
+            cache_index.append(url)
+            while len(cache_index)>100:
+                first_url = cache_index.pop(0)
+                del cache[first_url]
+            sent=sent+1
+            index=index+1
+            if sent >= cnt: break
+        if sent == 0: self.sendmsg(to_addr, "Нет новостей у меня")
 
-            #dataTokensDelimitedByWhitespace[3] :!курс
+    def maybe_print_news(self, bot_nick, str_incoming_line):
+        if is_news_command(bot_nick, str_incoming_line):
+            kwlist = []
+            dataTokensDelimitedByWhitespace = str_incoming_line.split(" ")
             communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
             where_mes_exc = communicationsLineName
-            if len(dataTokensDelimitedByWhitespace) > 3:
-              line = " ".join(dataTokensDelimitedByWhitespace[3:])
-              is_in_private_query = where_mes_exc == botName
-              bot_mentioned = botName in line
-              commWithBot = is_in_private_query or bot_mentioned
-              if 'курс' in line and commWithBot:
-                print('курс')
-                is_dialogue_with_master = False
-                if where_mes_exc == botName: #/query
-                    tokensNick1=dataTokensDelimitedByWhitespace[0].split("!")
-                    tokensNick1=tokensNick1[0].split(":")
-                    tokensNick1=tokensNick1[1]
-                    where_mes_exc=tokensNick1
-                    is_dialogue_with_master = master_secret in line
-                    if is_dialogue_with_master: send('PRIVMSG %s :%s\r\n'%(where_mes_exc,"hello, Master!"))
-                print('курс куда слать будем:', where_mes_exc, "is_dialogue_with_master:", is_dialogue_with_master)
+            line = " ".join(dataTokensDelimitedByWhitespace[3:]) if len(dataTokensDelimitedByWhitespace)>=4 else ""
+            if line.startswith(":"):line=line[1:]
+            print("'%s'"%line)
+            p = line.find("news")
+            if p == -1:
+                p = line.find("новости")
+                if p == -1:
+                    pass
+                else:
+                    p=p+len("новости")
+                    line = line[p:].strip()
+                    print("'%s'"%line)
+                    if line != '': kwlist.append(line)
+            else:
+                p = p+len("news")
+                line = line[p:].strip()
+                print("'%s'"%line)
+                if line != '': kwlist.append(line)
+            if len(kwlist)==0:
+                self.print_new_news_newsapi_org(where_mes_exc)
+            else:
+                resultUrl = news_search_ctxwebsrch(kwlist[0],1)
+                self.sendmsg(where_mes_exc, "%s" % (resultUrl if resultUrl else "Новостей не найдено"))
 
-                try:
-                    #This example uses Python 2.7 and the python-request library.
-                    
-                    from requests import Request, Session
-                    from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
-                    import json
-                    
-                    url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
-                    parameters = {
-                      'symbol':'BTC,ETH',
-                      'convert':'USD'
-                    }
-                    headers = {
-                      'Accepts': 'application/json',
-                      'X-CMC_PRO_API_KEY': coinmarketcap_apikey,
-                    }
-                    
-                    session = Session()
-                    session.headers.update(headers)
-                    
+    def maybe_print_search(self, bot_nick, str_incoming_line):
+        if is_search_command(bot_nick, str_incoming_line):
+            kwlist = []
+            dataTokensDelimitedByWhitespace = str_incoming_line.split(" ")
+            communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
+            where_mes_exc = communicationsLineName
+            line = " ".join(dataTokensDelimitedByWhitespace[3:]) if len(dataTokensDelimitedByWhitespace)>=4 else ""
+            if line.startswith(":"):line=line[1:]
+            print("'%s'"%line)
+            p = line.find("search")
+            if p == -1:
+                p = line.find("поиск")
+                if p == -1:
+                    pass
+                else:
+                    p=p+len("поиск")
+                    line = line[p:].strip()
+                    print("'%s'"%line)
+                    if line != '': kwlist.append(line)
+            else:
+                p = p+len("search")
+                line = line[p:].strip()
+                print("'%s'"%line)
+                if line != '': kwlist.append(line)
+            if len(kwlist)==0:
+                self.sendmsg(where_mes_exc, "Чего синьорам найти?")
+            else:
+                resultUrl = self.web_search(kwlist[0],1)
+                self.sendmsg(where_mes_exc, "%s" % (resultUrl if resultUrl else "Результатов не найдено"))
+
+    def maybe_print_search2(self, bot_nick, str_incoming_line):
+        if is_search_command2(bot_nick, str_incoming_line):
+            kwlist = []
+            dataTokensDelimitedByWhitespace = str_incoming_line.split(" ")
+            communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
+            where_mes_exc = communicationsLineName
+            line = " ".join(dataTokensDelimitedByWhitespace[3:]) if len(dataTokensDelimitedByWhitespace)>=4 else ""
+            if line.startswith(":"):line=line[1:]
+            print("'%s'"%line)
+            p = line.find("search2")
+            if p == -1:
+                p = line.find("поиск2")
+                if p == -1:
+                    pass
+                else:
+                    p=p+len("поиск2")
+                    line = line[p:].strip()
+                    print("'%s'"%line)
+                    if line != '': kwlist.append(line)
+            else:
+                p = p+len("search2")
+                line = line[p:].strip()
+                print("'%s'"%line)
+                if line != '': kwlist.append(line)
+            if len(kwlist)==0:
+                self.sendmsg(where_mes_exc, "Чего синьорам найти?")
+            else:
+                resultUrl = web_search2(kwlist[0],1)
+                self.sendmsg(where_mes_exc, "%s" % (resultUrl if resultUrl else "Результатов не найдено"))
+
+    databuf = b''
+    socket_closed = False
+    def init_socket(self, client_socket):
+        self.databuf = b''
+        self.socket_closed = False
+
+    def extract_line(self):
+        # socket must be closed for this call.
+        if not self.socket_closed: raise Exception
+
+        a = self.databuf.find(b'\r')
+        b = self.databuf.find(b'\n')
+        if a != -1 and b != -1: a = min(a, b)
+        if b != -1 and a == -1: a = b
+        if a != -1:
+            line = self.databuf[0:a]
+            if self.databuf[a]==0xD:
+                a=a+1
+                if a<len(self.databuf) and self.databuf[a]==0xA:
+                    a=a+1
+            else:
+                if self.databuf[a]==0xA:
+                    a=a+1
+            self.databuf = self.databuf[a:] if a < len(self.databuf) else b''
+            return line
+        return self.databuf
+
+    def extract_line_1(self):
+        if LOG_TRACE: print("extract_line_1() #0: databuf", databuf, "socket_closed", socket_closed)
+        a = self.databuf.find(b'\r')
+        b = self.databuf.find(b'\n')
+        if a != -1 and b != -1: a = min(a, b)
+        if b != -1 and a == -1: a = b
+        if a != -1:
+            if LOG_TRACE: print("#1: a:", a, "len(databuf):", len(self.databuf), "databuf[a]==b'SLASHr':", self.databuf[a]==0xD, "databuf[a]:", self.databuf[a], "a < len(databuf)-1:", a < len(self.databuf)-1)
+            if (self.databuf[a]==0xD and a < len(self.databuf)-1) or self.databuf[a]==0xA:
+                if LOG_TRACE: print("#2")
+                line = self.databuf[0:a]
+                if self.databuf[a]==0xD:
+                    if LOG_TRACE: print("#3")
+                    a=a+1
+                    if self.databuf[a]==0xA:
+                        if LOG_TRACE: print("#4")
+                        a=a+1
+                else:
+                    if LOG_TRACE: print("#5")
+                    if self.databuf[a]==0xA:
+                        if LOG_TRACE: print("#6")
+                        a=a+1
+                if LOG_TRACE: print("#7, a:", a)
+                self.databuf = self.databuf[a:]
+                if LOG_TRACE: print("returning line:", line)
+                return line
+            #else read more
+        #else read more
+        if LOG_TRACE: print("returning None")
+        return None
+
+    def get_line(self, client_socket):
+        if self.socket_closed:
+            return self.extract_line()
+        line = self.extract_line_1()
+        if line is not None: return line
+        while True:
+            r = client_socket.recv(81920)
+            if len(r) == 0:
+                if LOG_TRACE: print("EOF")
+                self.socket_closed = True
+                return self.extract_line()
+            if LOG_TRACE: print("RX:", r)
+            self.databuf += r
+            line = self.extract_line_1()
+            if line is not None: return line
+
+    # Function shortening of ic.self.send.  
+    def send(self, msg):
+      print("self.send:"+msg)
+      return self.irc_socket.send(bytes(msg,'utf-8'))
+
+          
+    # Install min & max timer vote.  
+    min_timer = 30
+    max_timer = 300
+
+    def get_news_count_for_channel(self, commLineName):
+        props = self.channelsProps[commLineName] if commLineName in self.channelsProps else None
+        if props is None: return 10
+        return props['news_count'] if 'news_count' in props else 3
+
+    def pinger_of_server(self):
+        print ("spawned pinger_of_server, key: '%s'" % self.settings_key)
+        while True:
+            print("---new ping to server---")
+            self.pong_received=False
+            self.send('PING :'+str(time.time())+'\r\n')
+            time.sleep(180)
+            if self.pong_received:
+                continue
+            else:
+                print ("ping to server timeout, closing socket, key: '%s'" % self.settings_key)
+                self.irc_socket.close()
+                print ("exiting pinger of server, key: '%s'" % self.settings_key)
+                return
+
+
+    def login_and_loop(self):
+        while True:
+            print("---new iter---")
+            try:
+                print("new socket(AF_INET,SOCK_STREAM)")
+                self.irc_socket = socks.socksocket()#socket.socket (socket.AF_INET, socket.SOCK_STREAM)
+                if self.connection_setting_or_None('socks5_host'):
+                    self.irc_socket.set_proxy(socks.SOCKS5, self.connection_option('socks5_host'), \
+                        self.connection_option('socks5_port'), True, self.connection_option('socks5_username'), \
+                        self.connection_option('socks5_password'))
+                print("connecting... irc_server_hostname='"+self.irc_server_hostname+"' port='"+str(self.port)+"'…")
+                self.irc_socket.connect ((self.irc_server_hostname, self.port))
+                self.init_socket(self.irc_socket)
+                print("connected, self.sending login handshake, self.botName=["+self.botName+"]…")
+                #print (self.irc_socket.recv(2048).decode("UTF-8"))
+                self.send('NICK '+self.botName+'\r\n')
+                self.send('USER '+self.botName+' '+self.botName+' '+self.botName+' :irc bot\r\n')
+                #self.send('NickServ IDENTIFY '+settings.settings('password')+'\r\n')
+                #self.send('MODE '+self.botName+' +x')
+
+                name = ''
+                message = ''
+                message_voting = ''
+                voting_results = ''
+
+                count_voting = 0
+                count_vote_plus = 0
+                count_vote_minus = 0
+                count_vote_all = 0
+                while_count = 0
+
+                btc_usd = 0
+                eth_usd = 0
+                usd_rub = 0
+                eur_rub = 0
+                btc_rub = 0
+                btc_usd_old = 0
+                eth_usd_old = 0
+                usd_rub_old = 0
+                eur_rub_old = 0
+                btc_rub_old = 0
+                btc_usd_su = ''
+                eth_usd_su = ''
+                usd_rub_su = ''
+                eur_rub_su = ''
+                time_vote = 0
+
+                whois_ip = ''
+                whois_ip_get_text = ''
+
+                timer_exc = 0
+                time_exc = 0
+
+                where_mes_exc = ''
+                t2 = 0
+
+                dict_users = {}
+                dict_count = {}
+                dict_voted = {}
+                list_vote_ip = []
+
+                # List who free from anti-flood function.
+                list_floodfree = settings.settings('list_floodfree')
+                list_bot_not_work = settings.settings('list_bot_not_work')
+
+                keepingConnection=True
+                while keepingConnection:
                     try:
-                      print('!курс session.get url='+url)
-                      response = session.get(url, params=parameters)
-                      cmc = json.loads(response.text)
-                      if LOG_TRACE: print("cmc:", cmc)
-                      btc_usd = cmc["data"]["BTC"]["quote"]["USD"]["price"]
-                      eth_usd = cmc["data"]["ETH"]["quote"]["USD"]["price"]
-                      btc_usd_str = str(format_currency(btc_usd))
-                      eth_usd_str = str(format_currency(eth_usd))
+                        data = self.get_line(self.irc_socket).decode("UTF-8")
+                        print("got line:["+data+"]")
+                        if data=="":
+                            print("data=='', self.irc_socket.close(), keepingConnection=False, iterate");
+                            self.irc_socket.close()
+                            keepingConnection=False
+                            continue
+                    except UnicodeDecodeError as decodeException:
+                        print("UnicodeDecodeError ", decodeException)
+                        continue
+                    tokens1 = data.split(" ");
+                    if len(tokens1)>1 and tokens1[1]=="433": #"Nickname is already in use" in data
+                        self.botNickSalt=self.botNickSalt+1
+                        self.botName = self.BOT_NAME_PREFIX+str(self.botNickSalt)
+                        self.send('NICK '+self.botName+'\r\n')
+                        continue
+                    if self.nickserv_password is not None and len(tokens1)>1 and tokens1[1]=="001": #001 nick :Welcome to the Internet Relay Network
+                        self.send('NICKSERV IDENTIFY '+self.nickserv_password+'\r\n')
+                    if data.find('PING') != -1:
+                        self.send('PONG '+data.split(" ")[1]+'\r\n')
+                        continue
+                    if data.find('PONG') != -1:
+                        print("server pong_received")
+                        self.pong_received=True
+                        continue
+
+                    #001 welcome
+                    spws = tokens1
+                    if len(spws) > 1 and spws[1]=="001":
+                        self.send('MODE '+self.botName+' +x\r\n')
+                        self.send('JOIN '+(",".join(self.channelsList))+' \r\n')
+                        MyPingsToServerThread(self).start()
+                        continue
+                    
+                    # Make variables Name, Message, IP from user message.
+                    if data.find('PRIVMSG') != -1:
+                        name = data.split('!',1)[0][1:]
+                        message = data.split('PRIVMSG',1)[1].split(':',1)[1]
+                    try:
+                        ip_user=None#"data.split('@',1)[1].split(' ',1)[0]
+                    except:
+                        print('error getting ip_user')
+
+                    """if self.enableother1:
+                        #-----------Translate_krzb---------    
+
+                        if ':!п' in data or 'PRIVMSG '+self.botName+' :!п ' in data:
+                            if 'PRIVMSG '+channel+' :!п ' in data:
+                                where_message = channel            
+                            elif 'PRIVMSG '+self.botName+' :!п ' in data:
+                                where_message = name
+                            
+                            tr_txt = message.split('!п ',1)[1].strip()
+                            res_txt = translate_krzb.tr(tr_txt)
+                            self.send('PRIVMSG '+where_message+' :\x02перевод с кракозябьечьего:\x02 '+res_txt+'\r\n')"""
+
+                    #-----------Bot_help---------------
+
+                    """if 'PRIVMSG '+channel+' :!help' in data or 'PRIVMSG '+self.botName+' :!справка' in data or 'PRIVMSG '+self.botName+' :!помощь' in data or 'PRIVMSG '+self.botName+' :!хелп' in data:
+                        self.send('NOTICE %s : Помощь по командам бота:\r\n' %(name))
+                        self.send('NOTICE %s : ***Функция опроса: [!опрос (число) сек (тема опрос)], например\
+(пишем без кавычек: \"!опрос 60 сек Вы любите ониме?\", если не писать время, то время\
+установится на 60 сек\r\n' %(name))
+                        self.send('NOTICE %s : ***Функция курса: просто пишите (без кавычек): "%s, курс". Писать\
+можно и в приват боту\r\n' %(name, bot_nick))
+                        self.send('NOTICE %s : ***Функция whois: что бы узнать расположение IP, просто пишите\
+(без кавычек): \"!где айпи (IP)\", пример: \"!где айпи \
+188.00.00.01\". Писать можно и в приват к боту\r\n' %(name))
+                        self.send('NOTICE %s : ***Функция перевода с английских букв на русские: \"!п tekst perevoda\", пример: \"!п ghbdtn\r\n' %(name))
+
+                        """
+                    #-----------Anti_flood-------------
+
+                    # Count of while.  
+                    while_count += 1
+                    if while_count == 50:
+                        while_count = 0
+                        dict_count = {}
+                            
+                    # Insert nick in dict: dic_count.  
+                    if data.find('PRIVMSG') != -1 and name not in dict_count and\
+                       name not in list_floodfree:
+                        dict_count[name] = int(1)
+                        #if 'PRIVMSG '+channel in data:
+                        #    where_message = channel #todo
+                        if 'PRIVMSG '+self.botName in data:
+                            where_message = self.botName
+                        else: where_message=None
+                    
+                    # If new message as last message: count +1.  
+                    if data.find('PRIVMSG') != -1 and message == dict_users.get(name)\
+                       and name not in list_floodfree:
+                        dict_count[name] += int(1)
+                    
+                    # Add key and value in massiv.  
+                    if data.find('PRIVMSG') != -1 and name not in list_floodfree:
+                        dict_users[name] = message
+                    
+                    # Message about flood and kick. 
+                    #if data.find('PRIVMSG') != -1 and name not in list_floodfree:
+                    #    for key in dict_count: 
+                    #        if dict_count[key] == 3 and key != 'none':
+                    #            self.send('PRIVMSG '+where_message+' :'+key+', Прекрати флудить!\r\n')
+                    #            dict_count[key] += 1
+                    #        elif dict_count[key] > 5 and key != 'none':
+                    #            self.send('KICK '+channel+' '+key+' :Я же сказал не флуди!\r\n')
+                    #            dict_count[key] = 0
+                            
                       
-                      send_res_exc_cmc = '\x033Курс CoinMarketCap: \x02BTC/USD:\x02 '+btc_usd_str+' \x02ETH/USD:\x02 '+eth_usd_str+"."
+                    # Out command.  
+                    """
+                    if data.find('PRIVMSG '+channel+' :!quit') != -1 and name == masterName:
+                        self.send('PRIVMSG '+channel+' :Хорошо, всем счастливо оставаться!\r\n')
+                        self.send('QUIT\r\n')
+                        sys.exit()
+                    """
+                    # Messages by bot.  
+                    """
+                    if "PRIVMSG %s :!напиши "%(channel) in data or\
+                       "PRIVMSG %s :!напиши "%(self.botName) in data and name == masterName:
+                        mes_per_bot = message.split('!напиши ',1)[1]
+                        self.send(mes_per_bot)
+                    """
+                    #---------Whois service--------------------------
 
-                    except (ConnectionError, Timeout, TooManyRedirects) as e:
-                      print(e)
+                    if self.enableother1:
+                      if 'PRIVMSG '+channel+' :!где айпи' in data\
+                       or 'PRIVMSG '+self.botName+' :!где айпи' in data:
 
-                    btcToUsdFloat = None
-                    btcToRurFloat = None
-                    #exmo
-                    try:
-                      import urllib.request
-                      url = "http://api.exmo.com/v1/ticker/"
-                      print("querying %s"%(url,))
-                      exmo_ticker = urllib.request.urlopen(url).read()
-                      exmo_ticker = json.loads(exmo_ticker)
-                      if LOG_TRACE: print("exmo_ticker:", exmo_ticker)
-                      #"USD_RUB":{"buy_price":"63.520002", "sell_price":"63.7", "last_trade":"63.678587", "high":"64.21396756", "low":"63.35", "avg":"63.78778311", "vol":"281207.5729779", "vol_curr":"17906900.90093241", "updated":1564935589 }
-                      #"BTC_RUB":{"buy_price":"692674.53013854","sell_price":"694990", "last_trade":"693302.09","high":"700000","low":"675000.00100102", "avg":"687445.89449801","vol":"223.90253022", "vol_curr":"155232092.15894149", "updated":1564935590 }
-                      #exmo_BTC_RUB_json = exmo_ticker["BTC_RUB"]
-                      exmo_BTC_USD_json = exmo_ticker["BTC_USD"]
-                      exmo_ETH_USD_json = exmo_ticker["ETH_USD"]
-                      #exmo_USD_RUB_json = exmo_ticker["USD_RUB"]
+                        if 'PRIVMSG '+channel+' :!где айпи' in data:
+                            where_message_whois = channel
+                            
+                        elif 'PRIVMSG '+self.botName+' :!где айпи' in data:
+                            where_message_whois = name
+                                      
+                        try:
+                            whois_ip = data.split('!где айпи ',1)[1].split('\r',1)[0].strip()
+                            get_whois = whois.whois(whois_ip)
+                            print(get_whois)
+                            country_whois = get_whois['country']
+                            city_whois = get_whois['city']
+                            address_whois = get_whois['address']    
 
-                      exmo_BTC_USD_sell_price = exmo_BTC_USD_json["sell_price"]
-                      btcToUsdFloat = float(exmo_BTC_USD_sell_price)
-                      btcToRurFloat = float(exmo_ticker["BTC_RUB"]["buy_price"])
-                      ircProtocolDisplayText_exmo = 'Курс Exmo: '+ \
-                            'BTC/USD S '+str(format_currency(exmo_BTC_USD_sell_price))+' B '+str(format_currency(exmo_BTC_USD_json["buy_price"]))+" | "+ \
-                            'ETH/USD S '+str(format_currency(exmo_ETH_USD_json["sell_price"]))+' B '+str(format_currency(exmo_ETH_USD_json["buy_price"]))+" | "+ \
-                            "BTC/RUR S "+str(format_currency(float(exmo_ticker["BTC_RUB"]["sell_price"])))+' B '+str(format_currency(float(exmo_ticker["BTC_RUB"]["buy_price"])))+"."
+                            if country_whois == None:
+                                country_whois = 'Unknown'
+                            if city_whois == None:
+                                city_whois = 'Unknown'
+                            if address_whois == None:
+                                address_whois = 'Unknown'    
+                                       
+                            whois_final_reply = ' \x02IP:\x02 '+whois_ip+' \x02Страна:\x02 '+\
+                                country_whois+' \x02Адрес:\x02 '+address_whois
+                            self.send('PRIVMSG '+where_message_whois+' :'+whois_final_reply+'\r\n')
+
+                        except:
+                            print('get Value Error in whois service!')
+                            self.send('PRIVMSG '+where_message_whois+' :Ошибка! Вводите только IP адрес \
+из цифр, разделенных точками!\r\n')
+                                     
+                    #---------Info from link in channel-------------
+                    
+                    if self.enableother1 and self.titleEnabled:
+                        if 'PRIVMSG %s :'%(channel) in data and '.png' not in data and '.jpg' not in data and '.doc'\
+                        not in data and 'tiff' not in data and 'gif' not in data and '.jpeg' not in data and '.pdf' not in data:
+                            if 'http://' in data or 'https://' in data or 'www.' in data:
+                                try:
+                                   self.send('PRIVMSG %s :%s\r\n'%(channel,link_title(data)))
+                                except requests.exceptions.ConnectionError:
+                                    print('Ошибка получения Title (requests.exceptions.ConnectionError)')
+                                    self.send('PRIVMSG '+channel+' :Ошибка ConnectionError\r\n')
+                                except:
+                                    print('Exception')  
+                    #---------Voting--------------------------------
+                                
+                    t = time.time()
+                    if self.enableother1:
+                      if '!стоп опрос' in data and 'PRIVMSG' in data and name == masterName:
+                        t2 = 0
+                        print('счетчик опроса сброшен хозяином!')
+                    if self.enableother1:
+                      if 'PRIVMSG '+channel+' :!опрос ' in data and ip_user not in list_bot_not_work:
+                        if t2 == 0 or t > t2+time_vote:
+                            if ' сек ' not in data:
+                                time_vote = 60
+                                # Make variable - text-voting-title form massage.  
+                                message_voting = message.split('!опрос',1)[1].strip()
+                            if ' сек ' in data:
+                                try:
+                                    # Get time of timer from user message.  
+                                    time_vote = int(message.split('!опрос',1)[1].split('сек',1)[0].strip())
+                                    # Make variable - text-voting-title form massage.  
+                                    message_voting = message.split('!опрос',1)[1].split('сек',1)[1].strip()
+                                except:
+                                    time_vote = 60
+                                    # Make variable - text-voting-title form massage.  
+                                    message_voting = message.split('!опрос',1)[1].strip()
+
+                            if min_timer>time_vote or max_timer<time_vote:
+                                self.send('PRIVMSG %s :Ошибка ввода таймера голосования.\
+Введите от %s до %s сек!\r\n'%(channel,min_timer,max_timer))
+                                continue
+                            
+                            t2 = time.time()
+                            count_vote_plus = 0
+                            count_vote_minus = 0
+                            vote_all = 0
+                            count_voting = 0
+                            list_vote_ip = []
+                            # Do null voting massiv.  
+                            dict_voted = {}
+                            self.send('PRIVMSG %s :Начинается опрос: \"%s\". Опрос будет идти \
+%d секунд. Чтобы ответить "да", пишите: \"!да\" \
+", чтобы ответить "нет", пишите: \"!нет\". Писать можно как открыто в канал,\
+так и в приват боту, чтобы голосовать анонимно \r\n' % (channel,message_voting,time_vote))
+                            list_vote_ip = []
+                                
+                    # If find '!да' count +1.  
+                    if self.enableother1:
+                      if data.find('PRIVMSG '+channel+' :!да') != -1 or data.find('PRIVMSG '+self.botName+' :!да') != -1:
+                        if ip_user not in list_vote_ip and t2 != 0:
+                            count_vote_plus +=1
+                            dict_voted[name] = 'yes'
+                            list_vote_ip.append(ip_user)
+                            # Make notice massage to votes user.  
+                            self.send('NOTICE '+name+' :Ваш ответ \"да\" учтен!\r\n')
+
+                    # If find '!нет' count +1.  
+                    if self.enableother1:
+                      if data.find('PRIVMSG '+channel+' :!нет') != -1 or data.find('PRIVMSG '+self.botName+' :!нет') != -1:
+                        if ip_user not in list_vote_ip and t2 != 0:
+                            count_vote_minus +=1
+                            dict_voted[name] = 'no'
+                            list_vote_ip.append(ip_user)
+                            # Make notice massage to votes user.  
+                            self.send('NOTICE '+name+' :Ваш ответ \"нет\" учтен!\r\n')
+                   
+                    # If masterName self.send '!список голосования': self.send to him privat messag with dictonary Who How voted.  
+                    if self.enableother1:
+                      if data.find('PRIVMSG '+self.botName+' :!список опроса') !=-1 and name == masterName:
+                        for i in dict_voted:
+                            self.send('PRIVMSG '+masterName+' : '+i+': '+dict_voted[i]+'\r\n')
+
+                    # Count how much was message in channel '!голосование'.  
+                    if self.enableother1:
+                      if data.find('PRIVMSG '+channel+' :!опрос') != -1 and t2 != 0:
+                        count_voting += 1
+
+                    # If voting is not end, and users self.send '!голосование...': self.send message in channel.  
+                    t4 = time.time()
+                    if self.enableother1:
+                      if data.find('PRIVMSG '+channel+' :!опрос') != -1 and t4-t2 > 5:
+                        t3 = time.time()
+                        time_vote_rest_min = (time_vote-(t3-t2))//60
+                        time_vote_rest_sec = (time_vote-(t3-t2))%60
+                        if (time_vote-(t3-t2)) > 0:
+                            self.send('PRIVMSG %s : Предыдущий опрос: \"%s\" ещё не окончен, до окончания \
+опроса осталось: %d мин %d сек\r\n \
+' % (channel,message_voting,time_vote_rest_min,time_vote_rest_sec))
+
+                    # Make variable message rusults voting.  
+                    vote_all = count_vote_minus + count_vote_plus
+                    """
+                    voting_results = 'PRIVMSG %s : результаты опроса: \"%s\", "Да" ответило: %d \
+человек(а), "Нет" ответило: %d человек(а), Всего ответило: %d человек(а) \
+\r\n' % (channel, message_voting, count_vote_plus, count_vote_minus, vote_all)
+
+                    # When voting End: self.send to channel ruselts and time count to zero.  
+                    if t-t2 > time_vote and t2 != 0:
+                        t2 = 0
+                        self.send('PRIVMSG '+channel+' : Опрос окончен!\r\n')
+                        self.send(voting_results)
+                    """
+                    self.maybe_print_news(self.botName, data)
+                    self.maybe_print_search(self.botName, data)
+                    #:nick!uname@addr.i2p PRIVMSG #ru :!курс
+                    #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
+                    dataTokensDelimitedByWhitespace = data.split(" ")
+                    #dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
+                    #dataTokensDelimitedByWhitespace[1] PRIVMSG
+
+                    #dataTokensDelimitedByWhitespace[2] #ru
+                    # OR
+                    #dataTokensDelimitedByWhitespace[2] BichBot
+
+                    #dataTokensDelimitedByWhitespace[3] :!курс
+                    communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
+                    where_mes_exc = communicationsLineName
+                    if len(dataTokensDelimitedByWhitespace) > 3:
+                      line = " ".join(dataTokensDelimitedByWhitespace[3:])
+                      is_in_private_query = where_mes_exc == self.botName
+                      bot_mentioned = self.botName in line
+                      commWithBot = is_in_private_query or bot_mentioned
+                      if 'курс' in line and commWithBot:
+                        print('курс')
+                        is_dialogue_with_master = False
+                        if where_mes_exc == self.botName: #/query
+                            tokensNick1=dataTokensDelimitedByWhitespace[0].split("!")
+                            tokensNick1=tokensNick1[0].split(":")
+                            tokensNick1=tokensNick1[1]
+                            where_mes_exc=tokensNick1
+                            is_dialogue_with_master = master_secret in line
+                            if is_dialogue_with_master: self.send('PRIVMSG %s :%s\r\n'%(where_mes_exc,"hello, Master!"))
+                        print('курс куда слать будем:', where_mes_exc, "is_dialogue_with_master:", is_dialogue_with_master)
+
+                        try:
+                            #This example uses Python 2.7 and the python-request library.
+                            
+                            from requests import Request, Session
+                            from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
+                            import json
+                            
+                            url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
+                            parameters = {
+                              'symbol':'BTC,ETH',
+                              'convert':'USD'
+                            }
+                            headers = {
+                              'Accepts': 'application/json',
+                              'X-CMC_PRO_API_KEY': self.coinmarketcap_apikey,
+                            }
+                            
+                            session = Session()
+                            session.headers.update(headers)
+                            
+                            try:
+                              print('!курс session.get url='+url)
+                              response = session.get(url, params=parameters)
+                              cmc = json.loads(response.text)
+                              if LOG_TRACE: print("cmc:", cmc)
+                              btc_usd = cmc["data"]["BTC"]["quote"]["USD"]["price"]
+                              eth_usd = cmc["data"]["ETH"]["quote"]["USD"]["price"]
+                              btc_usd_str = str(format_currency(btc_usd))
+                              eth_usd_str = str(format_currency(eth_usd))
+                              
+                              rate_cmc_str = '\x033Курс CoinMarketCap: \x02BTC/USD:\x02 '+btc_usd_str+' \x02ETH/USD:\x02 '+eth_usd_str+"."
+
+                            except (ConnectionError, Timeout, TooManyRedirects) as e:
+                              print(e)
+
+                            btcToUsdFloat = None
+                            btcToRurFloat = None
+                            #exmo
+                            try:
+                              import urllib.request
+                              url = "http://api.exmo.com/v1/ticker/"
+                              print("querying %s"%(url,))
+                              exmo_ticker = urllib.request.urlopen(url).read()
+                              exmo_ticker = json.loads(exmo_ticker)
+                              #print("exmo_ticker:", exmo_ticker)
+                              #"USD_RUB":{"buy_price":"63.520002", "sell_price":"63.7", "last_trade":"63.678587", "high":"64.21396756", "low":"63.35", "avg":"63.78778311", "vol":"281207.5729779", "vol_curr":"17906900.90093241", "updated":1564935589 }
+                              #"BTC_RUB":{"buy_price":"692674.53013854","sell_price":"694990", "last_trade":"693302.09","high":"700000","low":"675000.00100102", "avg":"687445.89449801","vol":"223.90253022", "vol_curr":"155232092.15894149", "updated":1564935590 }
+                              #exmo_BTC_RUB_json = exmo_ticker["BTC_RUB"]
+                              exmo_BTC_USD_json = exmo_ticker["BTC_USD"] if not 'error' in exmo_ticker else None
+                              exmo_ETH_USD_json = exmo_ticker["ETH_USD"] if not 'error' in exmo_ticker else None
+                              #exmo_USD_RUB_json = exmo_ticker["USD_RUB"]
+
+                              exmo_BTC_USD_sell_price = exmo_BTC_USD_json["sell_price"] if not 'error' in exmo_ticker else None
+                              btcToUsdFloat = float(exmo_BTC_USD_sell_price) if not 'error' in exmo_ticker else None
+                              btcToRurFloat = float(exmo_ticker["BTC_RUB"]["buy_price"]) if not 'error' in exmo_ticker else None
+                              if 'error' in exmo_ticker:
+                                ircProtocolDisplayText_exmo="Exmo API returned error: '%s'" % str(exmo_ticker['error'])
+                              else:
+                                ircProtocolDisplayText_exmo = 'Курс Exmo: '+ \
+                                    'BTC/USD S '+str(format_currency(exmo_BTC_USD_sell_price))+' B '+str(format_currency(exmo_BTC_USD_json["buy_price"]))+" | "+ \
+                                    'ETH/USD S '+str(format_currency(exmo_ETH_USD_json["sell_price"]))+' B '+str(format_currency(exmo_ETH_USD_json["buy_price"]))+" | "+ \
+                                    "BTC/RUR S "+str(format_currency(float(exmo_ticker["BTC_RUB"]["sell_price"])))+' B '+str(format_currency(float(exmo_ticker["BTC_RUB"]["buy_price"])))+"."
 
 
-                    except (ConnectionError, Timeout, TooManyRedirects) as e:
-                      print(e)
+                            except (ConnectionError, Timeout, TooManyRedirects) as e:
+                              print(e)
 
-                    if btcToRurFloat is not None and is_dialogue_with_master:
-                        gnome2rur = btcToRurFloat * gnome_btc_amount2_BTC_float
-                        gnomeDeltaGlobalRur = gnome2rur-gnome1rur
-                        measurementRur1=measurementRur2
-                        measurementRur2=gnome2rur
-                        gnomeDeltaLocalRur = measurementRur2-measurementRur1
-                        print("gnome_btc_amount2_BTC_float:", gnome_btc_amount2_BTC_float, "gnome2rur:", gnome2rur, "btcToRurFloat:", btcToRurFloat, "gnomeDeltaGlobalRur:", gnomeDeltaGlobalRur, "measurementRur1:", measurementRur1, "measurementRur2:", measurementRur2, "gnomeDeltaLocalRur:", gnomeDeltaLocalRur);
-                        gnomeHodlDeltaStr="Всего выросло: %s%s руб. Локально: %s%s руб. — %s" % ( \
-                                    ("+" if gnomeDeltaGlobalRur>=0 else "") , format_currency(gnomeDeltaGlobalRur) , \
-                                    ("+" if gnomeDeltaLocalRur>=0 else "") , format_currency(gnomeDeltaLocalRur) , \
-("растёт денежка, растёт!" if gnomeDeltaLocalRur>=0 else "убытки-с =( читаем книжку! http://knijka.i2p/"));
-                    else:
-                        gnomeHodlDeltaStr="??? руб.";
-                    send_res_exc = '%s | %s' % (send_res_exc_cmc, ircProtocolDisplayText_exmo) #, gnomeHodlDeltaStr
-                    print("send_res_exc:", send_res_exc)
-                    print("where_mes_exc:", where_mes_exc)
-                    send('PRIVMSG %s :%s\r\n'%(where_mes_exc,send_res_exc))
-                except (ConnectionError, Timeout, TooManyRedirects) as e:
-                    print(e)
-                except KeyError as e:
-                    print(e)
-                    send_res_exc = 'error in response json: %s' % str(e)
-                    print("send_res_exc:", send_res_exc)
-                    print("where_mes_exc:", where_mes_exc)
-                    send('PRIVMSG %s :%s\r\n'%(where_mes_exc,send_res_exc))
-    except ConnectionResetError as e: #on write to socket?
-        print("ConnectionResetError ", e)
-        print("irc.close(), iterate");
-        irc.close()
-        continue
+                            if btcToRurFloat is not None and is_dialogue_with_master:
+                                gnome2rur = btcToRurFloat * gnome_btc_amount2_BTC_float
+                                gnomeDeltaGlobalRur = gnome2rur-gnome1rur
+                                measurementRur1=measurementRur2
+                                measurementRur2=gnome2rur
+                                gnomeDeltaLocalRur = measurementRur2-measurementRur1
+                                print("gnome_btc_amount2_BTC_float:", gnome_btc_amount2_BTC_float, "gnome2rur:", gnome2rur, "btcToRurFloat:", btcToRurFloat, "gnomeDeltaGlobalRur:", gnomeDeltaGlobalRur, "measurementRur1:", measurementRur1, "measurementRur2:", measurementRur2, "gnomeDeltaLocalRur:", gnomeDeltaLocalRur);
+                                gnomeHodlDeltaStr="Всего выросло: %s%s руб. Локально: %s%s руб. — %s" % ( \
+                                            ("+" if gnomeDeltaGlobalRur>=0 else "") , format_currency(gnomeDeltaGlobalRur) , \
+                                            ("+" if gnomeDeltaLocalRur>=0 else "") , format_currency(gnomeDeltaLocalRur) , \
+        ("растёт денежка, растёт!" if gnomeDeltaLocalRur>=0 else "убытки-с =( читаем книжку! http://knijka.i2p/"));
+                            else:
+                                gnomeHodlDeltaStr="??? руб.";
+                            self.send_res_exc = '%s | %s' % (rate_cmc_str, ircProtocolDisplayText_exmo) #, gnomeHodlDeltaStr
+                            print("self.send_res_exc:", self.send_res_exc)
+                            print("where_mes_exc:", where_mes_exc)
+                            self.send('PRIVMSG %s :%s\r\n'%(where_mes_exc,self.send_res_exc))
+                        except (ConnectionError, Timeout, TooManyRedirects) as e:
+                            print(e)
+                        except KeyError as e:
+                            print(e)
+                            self.send_res_exc = 'error in response json: %s' % str(e)
+                            print("self.send_res_exc:", self.send_res_exc)
+                            print("where_mes_exc:", where_mes_exc)
+                            self.send('PRIVMSG %s :%s\r\n'%(where_mes_exc,self.send_res_exc))
+            except ConnectionResetError as e: #on write to socket?
+                print("ConnectionResetError ", e)
+                print("self.irc_socket.close(), iterate");
+                self.irc_socket.close()
+                continue
 
 
+from multiprocessing import Process
+import os
+
+def init_and_loop(settings_key):
+    print('init_and_loop settings_key="%s"' % settings_key)
+    print('%s.parent pid:' % settings_key, os.getppid())
+    print('%s.pid:' % settings_key, os.getpid())
+    bot = MyBot(settings_key)
+    bot.login_and_loop()
+
+#launch two threads with botsconn and login_and_loop
+def launch_all():
+    Process(target=init_and_loop, args=('rusnetirc',)).start()
+    Process(target=init_and_loop, args=('ilitka',)).start()
