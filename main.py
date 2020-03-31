@@ -75,8 +75,10 @@ def latest_news_newsapi_org():
     apikey=option("newsapi_apikey")
     url="http://newsapi.org/v2/top-headlines?country=ru&apiKey=%s" % apikey
     resp = requests.get(url=url)
+    if resp.status_code != 200: return []
+    #print (__file__, resp.text)
     rjson = resp.json()
-    print("ns_resp",json.dumps(rjson, sort_keys=True, indent=4))
+    print(__file__, "ns_resp",json.dumps(rjson, sort_keys=True, indent=4))
     if "articles" in rjson:
         arts = rjson["articles"]
         if arts is None: return []
@@ -87,8 +89,10 @@ def latest_news_google_news_ru():
     apikey=option("newsapi_apikey")
     url="http://newsapi.org/v2/top-headlines?sources=google-news-ru&apiKey=%s" % apikey
     resp = requests.get(url=url)
+    if resp.status_code != 200: return []
+    # print (__file__, resp.text)
     rjson = resp.json()
-    print("ns_resp",json.dumps(rjson, sort_keys=True, indent=4))
+    print(__file__, "ns_resp",json.dumps(rjson, sort_keys=True, indent=4))
     if "articles" in rjson:
         arts = rjson["articles"]
         if arts is None: return []
@@ -142,16 +146,16 @@ def is_search_command(bot_nick, str_line):
     #dataTokensDelimitedByWhitespace[2] BichBot
 
     #dataTokensDelimitedByWhitespace[3] :!курс
-    communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
+    #:server.org 332 GreenBich #ru :поисковик: search.org
+    if len(dataTokensDelimitedByWhitespace) < 4: return False
+    if dataTokensDelimitedByWhitespace[1] != "PRIVMSG": return False
+    communicationsLineName = dataTokensDelimitedByWhitespace[2]
     where_mes_exc = communicationsLineName
-    if len(dataTokensDelimitedByWhitespace) > 3:
-        line = " ".join(dataTokensDelimitedByWhitespace[3:])
-        is_in_private_query = where_mes_exc == bot_nick
-        bot_mentioned = bot_nick in line
-        commWithBot = is_in_private_query or bot_mentioned
-        return commWithBot and ("search" in line or "поиск" in line) or ("!search" in line or "!поиск" in line)
-    else:
-        return False
+    line = " ".join(dataTokensDelimitedByWhitespace[3:])
+    is_in_private_query = where_mes_exc == bot_nick
+    bot_mentioned = bot_nick in line
+    commWithBot = is_in_private_query or bot_mentioned
+    return commWithBot and ("search" in line or "поиск" in line) or ("!search" in line or "!поиск" in line)
 
 def is_search_command2(bot_nick, str_line):
     #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
@@ -346,7 +350,7 @@ class MyBot:
             if len(kwlist)==0:
                 self.print_new_news_newsapi_org(where_mes_exc)
             else:
-                resultUrl = news_search_ctxwebsrch(kwlist[0],1)
+                resultUrl = self.news_search_ctxwebsrch(kwlist[0],1)
                 self.sendmsg(where_mes_exc, "%s" % (resultUrl if resultUrl else "Новостей не найдено"))
 
     def maybe_print_search(self, bot_nick, str_incoming_line):
@@ -486,7 +490,8 @@ class MyBot:
     # Function shortening of ic.self.send.  
     def send(self, msg):
       print("self.send:"+msg)
-      return self.irc_socket.send(bytes(msg,'utf-8'))
+      retval = self.irc_socket.send(bytes(msg,'utf-8'))
+      return retval
 
           
     # Install min & max timer vote.  
@@ -978,10 +983,19 @@ class MyBot:
                             print("self.send_res_exc:", self.send_res_exc)
                             print("where_mes_exc:", where_mes_exc)
                             self.send('PRIVMSG %s :%s\r\n'%(where_mes_exc,self.send_res_exc))
-            except ConnectionResetError as e: #on write to socket?
-                print("ConnectionResetError ", e)
+            except KeyboardInterrupt as e:
+                raise e
+            except:
+                import traceback as tb 
+                tb.print_exc()
                 print("self.irc_socket.close(), iterate");
-                self.irc_socket.close()
+                try:
+                    self.irc_socket.close()
+                except KeyboardInterrupt as e:
+                    raise e
+                except:
+                    import traceback as tb 
+                    tb.print_exc()
                 continue
 
 
