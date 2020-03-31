@@ -603,6 +603,10 @@ class MyBot:
                         self.botName = self.BOT_NAME_PREFIX+str(self.botNickSalt)
                         self.send('NICK '+self.botName+'\r\n')
                         continue
+                    if len(tokens1)>=4 and tokens1[1]=="MODE" and "+x" in tokens1[3]: #:GreenBich MODE GreenBich :+x
+                        self.send('JOIN '+(",".join(self.channelsList))+' \r\n')
+                        continue
+                    #
                     if self.nickserv_password is not None and len(tokens1)>1 and tokens1[1]=="001": #001 nick :Welcome to the Internet Relay Network
                         self.send('NICKSERV IDENTIFY '+self.nickserv_password+'\r\n')
                     if data.find('PING') != -1:
@@ -616,9 +620,8 @@ class MyBot:
                     #001 welcome
                     spws = tokens1
                     if len(spws) > 1 and spws[1]=="001":
-                        self.send('MODE '+self.botName+' +x\r\n')
-                        self.send('JOIN '+(",".join(self.channelsList))+' \r\n')
                         MyPingsToServerThread(self).start()
+                        self.send('MODE '+self.botName+' +x\r\n')
                         continue
                     
                     # Make variables Name, Message, IP from user message.
