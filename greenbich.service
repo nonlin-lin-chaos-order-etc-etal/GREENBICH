@@ -1,0 +1,10 @@
+# edit and put this file into /etc/systemd/system/
+
+[Unit]
+Description=greenbich irc bot service
+
+[Service]
+ExecStart=/home/user/git/ircbot_greenbich/bin/run.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,4 +1,4 @@
-cd /home/user/git/ircbot_rusnet_bichbot/
+cd /home/user/git/ircbot_greenbich/
 
-. ./venv1/bin/activate && nohup python3 launch_all.py &
+./venv3/bin/python launch_all.py
 
