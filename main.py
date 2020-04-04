@@ -23,6 +23,12 @@ def get_interest_by_country(country):
 def get_trending_searches(country_str, kwlist=None):
     return pytrends.trending_searches(pn=country_str).to_numpy()
 
+def convert_hex_to_ip(hex_value):
+    a=int(hex_value[0:2], 16)
+    b=int(hex_value[2:4], 16)
+    c=int(hex_value[4:6], 16)
+    d=int(hex_value[6:8], 16)
+    return "%s.%s.%s.%s" % (str(a), str(b), str(c), str(d))
 
 # Function of parcing of get TITLE from link.  
 def link_title(n):
@@ -71,9 +77,23 @@ def link_title(n):
         else:
             return 'Title not found'
 
-def latest_news_newsapi_org():
+def ru_latest_news_newsapi_org():
     apikey=option("newsapi_apikey")
     url="http://newsapi.org/v2/top-headlines?country=ru&apiKey=%s" % apikey
+    resp = requests.get(url=url)
+    if resp.status_code != 200: return []
+    #print (__file__, resp.text)
+    rjson = resp.json()
+    print(__file__, "ns_resp",json.dumps(rjson, sort_keys=True, indent=4))
+    if "articles" in rjson:
+        arts = rjson["articles"]
+        if arts is None: return []
+        return arts
+    return []
+
+def ua_latest_news_newsapi_org():
+    apikey=option("newsapi_apikey")
+    url="http://newsapi.org/v2/top-headlines?country=ua&apiKey=%s" % apikey
     resp = requests.get(url=url)
     if resp.status_code != 200: return []
     #print (__file__, resp.text)
@@ -113,7 +133,7 @@ def fetch_last_hour_new_news(old_news_cache=None, kwlist=None):
         newer.append(line)
     return newer
 
-def is_news_command(bot_nick, str_line):
+def is_runews_command(bot_nick, str_line):
     #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
     dataTokensDelimitedByWhitespace = str_line.split(" ")
     #dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
@@ -131,7 +151,29 @@ def is_news_command(bot_nick, str_line):
         is_in_private_query = where_mes_exc == bot_nick
         bot_mentioned = bot_nick in line
         commWithBot = is_in_private_query or bot_mentioned
-        return commWithBot and ("news" in line or "новости" in line) or ("!news" in line or "!новости" in line)
+        return commWithBot and ("runews" in line or "руновости" in line) or ("!runews" in line or "!руновости" in line)
+    else:
+        return False
+
+def is_uanews_command(bot_nick, str_line):
+    #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
+    dataTokensDelimitedByWhitespace = str_line.split(" ")
+    #dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
+    #dataTokensDelimitedByWhitespace[1] PRIVMSG
+
+    #dataTokensDelimitedByWhitespace[2] #ru
+    # OR
+    #dataTokensDelimitedByWhitespace[2] BichBot
+
+    #dataTokensDelimitedByWhitespace[3] :!курс
+    communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
+    where_mes_exc = communicationsLineName
+    if len(dataTokensDelimitedByWhitespace) > 3:
+        line = " ".join(dataTokensDelimitedByWhitespace[3:])
+        is_in_private_query = where_mes_exc == bot_nick
+        bot_mentioned = bot_nick in line
+        commWithBot = is_in_private_query or bot_mentioned
+        return commWithBot and ("uanews" in line or "укрновости" in line) or ("!uanews" in line or "!укрновости" in line)
     else:
         return False
 
@@ -290,7 +332,7 @@ class MyBot:
             if sent >= cnt: break
         if sent == 0: self.sendmsg(to_addr, "Нет новостей у меня")
 
-    def print_new_news_newsapi_org(self, to_addr):
+    def print_new_runews_newsapi_org(self, to_addr):
         old_news_cache = self.old_news_cache
         old_news_cache_index = self.old_news_cache_index
         if to_addr in old_news_cache:
@@ -303,7 +345,40 @@ class MyBot:
         else:
             cache_index=[]
             old_news_cache_index[to_addr]=cache_index
-        arts = latest_news_newsapi_org() + latest_news_google_news_ru()
+        arts = ru_latest_news_newsapi_org() + latest_news_google_news_ru()
+
+        cnt = self.get_news_count_for_channel(to_addr)
+        sent = 0
+        index = 0
+        for a in arts:
+            if a is None: continue
+            url = a["url"]
+            if url in cache: continue
+            self.sendmsg(to_addr, "%s %s" % ( str(url), str(a["title"]) ))
+            cache[url] = True
+            cache_index.append(url)
+            while len(cache_index)>100:
+                first_url = cache_index.pop(0)
+                del cache[first_url]
+            sent=sent+1
+            index=index+1
+            if sent >= cnt: break
+        if sent == 0: self.sendmsg(to_addr, "Нет новостей у меня")
+
+    def print_new_uanews_newsapi_org(self, to_addr):
+        old_news_cache = self.old_news_cache
+        old_news_cache_index = self.old_news_cache_index
+        if to_addr in old_news_cache:
+            cache = old_news_cache[to_addr]
+        else:
+            cache={}
+            old_news_cache[to_addr]=cache
+        if to_addr in old_news_cache_index:
+            cache_index = old_news_cache_index[to_addr]
+        else:
+            cache_index=[]
+            old_news_cache_index[to_addr]=cache_index
+        arts = ua_latest_news_newsapi_org()
 
         cnt = self.get_news_count_for_channel(to_addr)
         sent = 0
@@ -324,7 +399,7 @@ class MyBot:
         if sent == 0: self.sendmsg(to_addr, "Нет новостей у меня")
 
     def maybe_print_news(self, bot_nick, str_incoming_line):
-        if is_news_command(bot_nick, str_incoming_line):
+        if is_runews_command(bot_nick, str_incoming_line):
             kwlist = []
             dataTokensDelimitedByWhitespace = str_incoming_line.split(" ")
             communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
@@ -348,7 +423,35 @@ class MyBot:
                 print("'%s'"%line)
                 if line != '': kwlist.append(line)
             if len(kwlist)==0:
-                self.print_new_news_newsapi_org(where_mes_exc)
+                self.print_new_runews_newsapi_org(where_mes_exc)
+            else:
+                resultUrl = self.news_search_ctxwebsrch(kwlist[0],1)
+                self.sendmsg(where_mes_exc, "%s" % (resultUrl if resultUrl else "Новостей не найдено"))
+        if is_uanews_command(bot_nick, str_incoming_line):
+            kwlist = []
+            dataTokensDelimitedByWhitespace = str_incoming_line.split(" ")
+            communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
+            where_mes_exc = communicationsLineName
+            line = " ".join(dataTokensDelimitedByWhitespace[3:]) if len(dataTokensDelimitedByWhitespace)>=4 else ""
+            if line.startswith(":"):line=line[1:]
+            print("'%s'"%line)
+            p = line.find("news")
+            if p == -1:
+                p = line.find("новости")
+                if p == -1:
+                    pass
+                else:
+                    p=p+len("новости")
+                    line = line[p:].strip()
+                    print("'%s'"%line)
+                    if line != '': kwlist.append(line)
+            else:
+                p = p+len("news")
+                line = line[p:].strip()
+                print("'%s'"%line)
+                if line != '': kwlist.append(line)
+            if len(kwlist)==0:
+                self.print_new_uanews_newsapi_org(where_mes_exc)
             else:
                 resultUrl = self.news_search_ctxwebsrch(kwlist[0],1)
                 self.sendmsg(where_mes_exc, "%s" % (resultUrl if resultUrl else "Новостей не найдено"))
@@ -598,6 +701,19 @@ class MyBot:
                         print("UnicodeDecodeError ", decodeException)
                         continue
                     tokens1 = data.split(" ");
+
+                    dataTokensDelimitedByWhitespace = tokens1
+                    #dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
+                    #dataTokensDelimitedByWhitespace[1] PRIVMSG
+
+                    #dataTokensDelimitedByWhitespace[2] #ru
+                    # OR
+                    #dataTokensDelimitedByWhitespace[2] BichBot
+
+                    #dataTokensDelimitedByWhitespace[3] :!курс
+                    communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
+                    lineJoined = " ".join(dataTokensDelimitedByWhitespace[3:]) if len(dataTokensDelimitedByWhitespace) >= 4 else ""
+
                     if len(tokens1)>1 and tokens1[1]=="433": #"Nickname is already in use" in data
                         self.botNickSalt=self.botNickSalt+1
                         self.botName = self.BOT_NAME_PREFIX+str(self.botNickSalt)
@@ -633,18 +749,27 @@ class MyBot:
                     except:
                         print('error getting ip_user')
 
-                    """if self.enableother1:
-                        #-----------Translate_krzb---------    
-
-                        if ':!п' in data or 'PRIVMSG '+self.botName+' :!п ' in data:
-                            if 'PRIVMSG '+channel+' :!п ' in data:
-                                where_message = channel            
-                            elif 'PRIVMSG '+self.botName+' :!п ' in data:
-                                where_message = name
-                            
-                            tr_txt = message.split('!п ',1)[1].strip()
+                    if self.enableother1 or self.connection_setting_or_None("enable_krako_translation"):
+                        #print(__file__, "krako test")
+                        if ':!k' in lineJoined and dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
+                            print(__file__, "krako test success")
+                            where_message = communicationsLineName
+                            tr_txt = message.split('!k ',1)[1].strip()
                             res_txt = translate_krzb.tr(tr_txt)
-                            self.send('PRIVMSG '+where_message+' :\x02перевод с кракозябьечьего:\x02 '+res_txt+'\r\n')"""
+                            self.send('PRIVMSG '+where_message+' :\x02перевод с кракозябьечьего:\x02 '+res_txt+'\r\n')
+                            continue
+
+                    if self.enableother1 or self.connection_setting_or_None("enable_hextoip"):
+                        if ':!hextoip' in lineJoined and dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
+                            print(__file__, "hextoip test success")
+                            hex_value = message.split('!hextoip ',1)[1].strip()
+                            try:
+                                self.send('PRIVMSG '+communicationsLineName+' :\x02hextoip:\x02 '+convert_hex_to_ip(hex_value)+'\r\n')
+                            except KeyboardInterrupt as e:
+                                raise e
+                            except BaseException as e:
+                                self.send('PRIVMSG '+communicationsLineName+' :\x02hextoip:\x02 error: '+str(e)+'\r\n')
+                            continue
 
                     #-----------Bot_help---------------
 
@@ -866,16 +991,6 @@ class MyBot:
                     self.maybe_print_search(self.botName, data)
                     #:nick!uname@addr.i2p PRIVMSG #ru :!курс
                     #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
-                    dataTokensDelimitedByWhitespace = data.split(" ")
-                    #dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
-                    #dataTokensDelimitedByWhitespace[1] PRIVMSG
-
-                    #dataTokensDelimitedByWhitespace[2] #ru
-                    # OR
-                    #dataTokensDelimitedByWhitespace[2] BichBot
-
-                    #dataTokensDelimitedByWhitespace[3] :!курс
-                    communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
                     where_mes_exc = communicationsLineName
                     if len(dataTokensDelimitedByWhitespace) > 3:
                       line = " ".join(dataTokensDelimitedByWhitespace[3:])
