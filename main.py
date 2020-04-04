@@ -11,11 +11,23 @@ from urllib.parse import unquote
 from urllib.parse import quote as urlencode
 from settings import settings as option
 from threading import Thread
+import traceback
 
 LOG_TRACE = False
 
 from pytrends.request import TrendReq
-pytrends = TrendReq(hl='ru-RU', tz=360)
+while True:
+    try:
+        pytrends = TrendReq(hl='ru-RU', tz=360)
+        break
+    except KeyboardInterrupt as e:
+        raise e
+    except:
+        traceback.print_exc()
+        TIME_TO_SLEEP_SECONDS = 1
+        print ( "sleeping %s seconds" % str(TIME_TO_SLEEP_SECONDS) )
+        time.sleep(TIME_TO_SLEEP_SECONDS)
+        continue
 
 def get_interest_by_country(country):
     return pytrends.interest_by_region(resolution='COUNTRY', inc_low_vol=True, inc_geo_code=False)

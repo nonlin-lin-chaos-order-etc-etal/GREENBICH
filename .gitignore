@@ -103,8 +103,9 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-local.json
+local.json*
 venv*
 nohup.out
 
 *.sublime-*
+*~
