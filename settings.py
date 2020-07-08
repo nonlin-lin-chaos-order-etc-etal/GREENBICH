@@ -8,4 +8,5 @@ config = json.loads(data)
 def settings(key):
     return config[key]
 
-
+def getconfig():
+	return config

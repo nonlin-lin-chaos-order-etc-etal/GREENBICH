@@ -15,6 +15,9 @@ import traceback
 
 LOG_TRACE = False
 
+def fmt2(your_numeric_value):
+    return "{:0,.2f}".format(float(your_numeric_value))
+
 from pytrends.request import TrendReq
 while True:
     try:
@@ -254,10 +257,11 @@ class MyBot:
         return dic[key2] if key2 in dic else None
 
     def connection_settings_dict(self):
-        return option(self.settings_key)
+        return self.connection_props
 
-    def __init__(self, settings_key):
+    def __init__(self, settings_key, connection_props):
         self.settings_key = settings_key
+        self.connection_props = connection_props
 
         self.irc_server_hostname = self.connection_settings('irc_server_hostname')
         self.port = int(self.connection_settings('port'))
@@ -633,11 +637,13 @@ class MyBot:
                 print ("exiting pinger of server, key: '%s'" % self.settings_key)
                 return
 
-
     def login_and_loop(self):
         while True:
-            print("---new iter---")
+            print("---new iter---", flush=True)
             try:
+                from time import sleep as sleep_seconds
+                print("sleeping 50ms...")
+                sleep_seconds(0.05)
                 print("new socket(AF_INET,SOCK_STREAM)")
                 self.irc_socket = socks.socksocket()#socket.socket (socket.AF_INET, socket.SOCK_STREAM)
                 if self.connection_setting_or_None('socks5_host'):
@@ -774,8 +780,8 @@ class MyBot:
                     if self.enableother1 or self.connection_setting_or_None("enable_hextoip"):
                         if ':!hextoip' in lineJoined and dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
                             print(__file__, "hextoip test success")
-                            hex_value = message.split('!hextoip ',1)[1].strip()
                             try:
+                                hex_value = message.split('!hextoip ',1)[1].strip()
                                 self.send('PRIVMSG '+communicationsLineName+' :\x02hextoip:\x02 '+convert_hex_to_ip(hex_value)+'\r\n')
                             except KeyboardInterrupt as e:
                                 raise e
@@ -1005,6 +1011,9 @@ class MyBot:
                     #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
                     where_mes_exc = communicationsLineName
                     if len(dataTokensDelimitedByWhitespace) > 3:
+
+                      fe_msg = "FreiEx(GST): N/A"
+
                       line = " ".join(dataTokensDelimitedByWhitespace[3:])
                       is_in_private_query = where_mes_exc == self.botName
                       bot_mentioned = self.botName in line
@@ -1030,7 +1039,7 @@ class MyBot:
                             
                             url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
                             parameters = {
-                              'symbol':'BTC,ETH',
+                              'symbol':'BTC,ETH,DASH',
                               'convert':'USD'
                             }
                             headers = {
@@ -1048,10 +1057,12 @@ class MyBot:
                               if LOG_TRACE: print("cmc:", cmc)
                               btc_usd = cmc["data"]["BTC"]["quote"]["USD"]["price"]
                               eth_usd = cmc["data"]["ETH"]["quote"]["USD"]["price"]
+                              dash_usd = cmc["data"]["DASH"]["quote"]["USD"]["price"]
                               btc_usd_str = str(format_currency(btc_usd))
                               eth_usd_str = str(format_currency(eth_usd))
+                              dash_usd_str = str(format_currency(dash_usd))
                               
-                              rate_cmc_str = '\x033Курс CoinMarketCap: \x02BTC/USD:\x02 '+btc_usd_str+' \x02ETH/USD:\x02 '+eth_usd_str+"."
+                              rate_cmc_str = 'Курс CoinMarketCap: \x02BTC/USD:\x02 '+btc_usd_str+' \x02ETH/USD:\x02 '+eth_usd_str+' \x02DASH/USD:\x02 '+dash_usd_str+"."
 
                             except (ConnectionError, Timeout, TooManyRedirects) as e:
                               print(e)
@@ -1076,6 +1087,48 @@ class MyBot:
                               exmo_BTC_USD_sell_price = exmo_BTC_USD_json["sell_price"] if not 'error' in exmo_ticker else None
                               btcToUsdFloat = float(exmo_BTC_USD_sell_price) if not 'error' in exmo_ticker else None
                               btcToRurFloat = float(exmo_ticker["BTC_RUB"]["buy_price"]) if not 'error' in exmo_ticker else None
+
+                              try:
+                                  import urllib.request
+                                  url = "https://api.freiexchange.com/public/ticker/GST"
+                                  print("querying %s"%(url,))
+                                  req = urllib.request.Request(
+                                        url, 
+                                        data=None, 
+                                        headers={
+                                            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
+                                        }
+                                  )
+                                  fe_ticker = urllib.request.urlopen(req).read()
+                                  # urllib.request.urlopen(url).read()
+                                  print("resp:",fe_ticker,flush=True)
+                                  fe_ticker = json.loads(fe_ticker)
+                                  if "GST_BTC" in fe_ticker:
+                                    gst_resp = fe_ticker["GST_BTC"][0]
+                                    volume24h_gst = float(gst_resp["volume24h"])
+                                    volume24h_btc = float(gst_resp["volume24h_btc"])
+                                    volume24h_rur = btcToRurFloat*volume24h_btc if btcToRurFloat is not None else None
+                                    last = float(gst_resp["last"])
+                                    last_rur = btcToRurFloat*last if btcToRurFloat is not None else None
+                                    highestBuy = float(gst_resp["highestBuy"])
+                                    highestBuy_rur = btcToRurFloat*highestBuy if btcToRurFloat is not None else None
+                                    lowestSell = float(gst_resp["lowestSell"])
+                                    lowestSell_rur = btcToRurFloat*lowestSell if btcToRurFloat is not None else None
+
+                                    fe_msg = "FreiEx(GST): VOL24:"+fmt2(volume24h_rur)+"RUR LAST:"+fmt2(last_rur)+"RUR S:"+fmt2(lowestSell_rur)+"RUR B:"+fmt2(highestBuy_rur)+"RUR"
+                                  else:
+                                    fe_msg = "Error in FreiEx(GST) response"
+                              except KeyboardInterrupt as ex:
+                                print("ex:",str(ex),flush=True)
+                                raise e
+                              except BaseException as ex:
+                                print("ex:",str(ex),flush=True)
+                                import traceback as tb 
+                                tb.print_exc()
+                                import sys
+                                sys.stdout.flush()
+                                sys.stderr.flush()
+                              print("after freiexchange poll", flush=True)
                               if 'error' in exmo_ticker:
                                 ircProtocolDisplayText_exmo="Exmo API returned error: '%s'" % str(exmo_ticker['error'])
                               else:
@@ -1101,10 +1154,10 @@ class MyBot:
         ("растёт денежка, растёт!" if gnomeDeltaLocalRur>=0 else "убытки-с =( читаем книжку! http://knijka.i2p/"));
                             else:
                                 gnomeHodlDeltaStr="??? руб.";
-                            self.send_res_exc = '%s | %s' % (rate_cmc_str, ircProtocolDisplayText_exmo) #, gnomeHodlDeltaStr
+                            self.send_res_exc = '%s | %s | %s' % (str(fe_msg), rate_cmc_str, ircProtocolDisplayText_exmo) #, gnomeHodlDeltaStr
                             print("self.send_res_exc:", self.send_res_exc)
-                            print("where_mes_exc:", where_mes_exc)
-                            self.send('PRIVMSG %s :%s\r\n'%(where_mes_exc,self.send_res_exc))
+                            print("where_mes_exc:", where_mes_exc, flush=True)
+                            self.send('PRIVMSG %s :\x033%s\r\n'%(where_mes_exc,self.send_res_exc))
                         except (ConnectionError, Timeout, TooManyRedirects) as e:
                             print(e)
                         except KeyError as e:
@@ -1132,14 +1185,21 @@ class MyBot:
 from multiprocessing import Process
 import os
 
-def init_and_loop(settings_key):
+def init_and_loop(settings_key, connection_props):
     print('init_and_loop settings_key="%s"' % settings_key)
     print('%s.parent pid:' % settings_key, os.getppid())
     print('%s.pid:' % settings_key, os.getpid())
-    bot = MyBot(settings_key)
+    bot = MyBot(settings_key, connection_props)
     bot.login_and_loop()
 
 #launch two threads with botsconn and login_and_loop
 def launch_all():
-    Process(target=init_and_loop, args=('rusnetirc',)).start()
-    Process(target=init_and_loop, args=('ilitka',)).start()
+    from settings import getconfig
+    print("processing configs")
+    connections = getconfig()["connections"]
+    for key in connections.keys():
+        conn_props = connections[key]
+        print("launching connection '"+key+"', conn_props='"+str(conn_props)+"'")
+        Process(target=init_and_loop, args=(key,conn_props,)).start()
+        print("launched connection '"+key+"'")
+    print("processed all connections")
