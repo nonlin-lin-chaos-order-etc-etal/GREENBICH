@@ -769,12 +769,23 @@ class MyBot:
 
                     if self.enableother1 or self.connection_setting_or_None("enable_krako_translation"):
                         #print(__file__, "krako test")
-                        if ':!k' in lineJoined and dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
-                            print(__file__, "krako test success")
-                            where_message = communicationsLineName
-                            tr_txt = message.split('!k ',1)[1].strip()
-                            res_txt = translate_krzb.tr(tr_txt)
-                            self.send('PRIVMSG '+where_message+' :\x02перевод с кракозябьечьего:\x02 '+res_txt+'\r\n')
+                        try:
+                            if ':!k' in lineJoined and dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
+                                print(__file__, "krako test success")
+                                where_message = communicationsLineName
+                                tr_txt = message.split('!k ',1)[1].strip()
+                                res_txt = translate_krzb.tr(tr_txt)
+                                self.send('PRIVMSG '+where_message+' :\x02перевод с кракозябьечьего:\x02 '+res_txt+'\r\n')
+                                continue
+                        except KeyboardInterrupt as ex:
+                            import traceback as tb
+                            tb.print_exc()
+                            self.send('PRIVMSG '+where_message+' :\x02!k error:\x02 '+str(ex)+'\r\n')
+                            raise ex
+                        except BaseException as ex:
+                            import traceback as tb
+                            tb.print_exc()
+                            self.send('PRIVMSG '+where_message+' :\x02!k error:\x02 '+str(ex)+'\r\n')
                             continue
 
                     if self.enableother1 or self.connection_setting_or_None("enable_hextoip"):
