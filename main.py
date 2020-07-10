@@ -15,6 +15,33 @@ import traceback
 
 LOG_TRACE = False
 
+def get_create_ctx_from_mask2ctx(mask2ctx, mask):
+    if mask in mask2ctx:
+        ctx = mask2ctx[mask]
+    else:
+        ctx = {}
+        mask2ctx[mask] = ctx
+    return ctx
+
+def replace_nick_mask2ctx(mask2ctx, prev_mask, new_mask):
+    print(__name__, "replace_nick_mask2ctx(, prev_mask='"+str(prev_mask)+"', new_mask="+str(new_mask)+")", flush=True)
+    if prev_mask in mask2ctx:
+        ctx = mask2ctx[prev_mask]
+        del mask2ctx[prev_mask]
+    else:
+        ctx = {}
+    mask2ctx[new_mask]=ctx
+
+def set_prev_msg(mask2ctx, mask, message):
+    print(__name__, "set_prev_msg(, mask='"+str(mask)+"', message="+str(message)+")", flush=True)
+    if mask is None or message is None: return
+    ctx = get_create_ctx_from_mask2ctx(mask2ctx, mask)
+    ctx["prev_msg"]=message
+
+def get_prev_msg(mask2ctx, mask):
+    ctx = get_create_ctx_from_mask2ctx(mask2ctx, mask)
+    return ctx["prev_msg"] if "prev_msg" in ctx else None
+
 def fmt2(your_numeric_value):
     return "{:0,.2f}".format(float(your_numeric_value))
 
@@ -641,6 +668,7 @@ class MyBot:
         while True:
             print("---new iter---", flush=True)
             try:
+                mask2ctx = {}
                 from time import sleep as sleep_seconds
                 print("sleeping 50ms...")
                 sleep_seconds(0.05)
@@ -709,7 +737,7 @@ class MyBot:
                 while keepingConnection:
                     try:
                         data = self.get_line(self.irc_socket).decode("UTF-8")
-                        print("got line:["+data+"]")
+                        print("got line:["+data+"]", flush=True)
                         if data=="":
                             print("data=='', self.irc_socket.close(), keepingConnection=False, iterate");
                             self.irc_socket.close()
@@ -719,6 +747,8 @@ class MyBot:
                         print("UnicodeDecodeError ", decodeException)
                         continue
                     tokens1 = data.split(" ");
+
+                    sender_mask = None
 
                     dataTokensDelimitedByWhitespace = tokens1
                     #dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
@@ -731,6 +761,7 @@ class MyBot:
                     #dataTokensDelimitedByWhitespace[3] :!курс
                     communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
                     lineJoined = " ".join(dataTokensDelimitedByWhitespace[3:]) if len(dataTokensDelimitedByWhitespace) >= 4 else ""
+                    sender = communicationsLineName
 
                     if len(tokens1)>1 and tokens1[1]=="433": #"Nickname is already in use" in data
                         self.botNickSalt=self.botNickSalt+1
@@ -758,35 +789,91 @@ class MyBot:
                         self.send('MODE '+self.botName+' +x\r\n')
                         continue
                     
-                    # Make variables Name, Message, IP from user message.
-                    if data.find('PRIVMSG') != -1:
-                        name = data.split('!',1)[0][1:]
-                        message = data.split('PRIVMSG',1)[1].split(':',1)[1]
+                    ws_tokens = tokens1
+
                     try:
-                        ip_user=None#"data.split('@',1)[1].split(' ',1)[0]
+                        message = None
+                        #got line:[:test2!~username@ipaddr PRIVMSG #channel :msg]
+                        if len(ws_tokens)>=4:
+                            src = ws_tokens[0]
+                            cmd = ws_tokens[1]
+                            chan = ws_tokens[2]
+                            msg = " ".join(ws_tokens[3:])
+
+                            if cmd == "PRIVMSG":
+                                name = src.split('!')[0][1:]
+                                sender_mask = src[1:]
+                                message = msg[1:]
+                                print(__name__, "msg: '"+str(message)+"'",flush=True)
+                            try:
+                                ip_user=None#"data.split('@',1)[1].split(' ',1)[0]
+                            except:
+                                print(__name__, 'error getting ip_user')
                     except:
-                        print('error getting ip_user')
+                        import traceback as tb
+                        tb.print_exc()
+                        import sys
+                        sys.stderr.flush()
+
+                    #got line:[:test1!~username@ipaddr NICK :test2]
+                    try:
+                        if len(ws_tokens)>=3:
+                            src = ws_tokens[0]
+                            cmd = ws_tokens[1]
+                            msg = " ".join(ws_tokens[2:])
+
+                            if cmd == "NICK":
+                                old_mask = src[1:]
+                                print(__name__, "old_mask: '"+old_mask+"'",flush=True)
+                                old_mask_split = old_mask.split("!")
+                                new_nick = msg[1:]
+                                new_mask = new_nick+"!"+old_mask_split[1]
+                                print(__name__, "new_mask: '"+new_mask+"'",flush=True)
+                                replace_nick_mask2ctx(mask2ctx, old_mask, new_mask)
+                    except:
+                        import traceback as tb
+                        tb.print_exc()
+                        import sys
+                        sys.stderr.flush()
 
                     if self.enableother1 or self.connection_setting_or_None("enable_krako_translation"):
                         #print(__file__, "krako test")
                         try:
-                            if ':!k' in lineJoined and dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
-                                print(__file__, "krako test success")
-                                where_message = communicationsLineName
-                                tr_txt = message.split('!k ',1)[1].strip()
+                            where_message = communicationsLineName
+                            if message is not None and (("!k" in message) or ("!к" in message)) and dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
+                                print(__name__, "krako test success",flush=True)
+                                if (message == "!k") or (message == "!к"):
+                                    print(__name__, "krako: mask2ctx='"+str(mask2ctx)+"', sender_mask='"+str(sender_mask)+"'",flush=True)
+                                    prev_msg = get_prev_msg(mask2ctx, sender_mask)
+                                    print(__name__, "krako translating prev_msg: '"+str(prev_msg)+"'",flush=True)
+                                    tr_txt = prev_msg
+                                else:
+                                    if (':!k' in lineJoined): tr_txt = message.split('!k ',1)[1].strip()
+                                    else:
+                                        if (':!к' in lineJoined): tr_txt = message.split('!к ',1)[1].strip()
                                 res_txt = translate_krzb.tr(tr_txt)
                                 self.send('PRIVMSG '+where_message+' :\x02перевод с кракозябьечьего:\x02 '+res_txt+'\r\n')
                                 continue
                         except KeyboardInterrupt as ex:
                             import traceback as tb
                             tb.print_exc()
+                            import sys
+                            sys.stderr.flush()
                             self.send('PRIVMSG '+where_message+' :\x02!k error:\x02 '+str(ex)+'\r\n')
                             raise ex
                         except BaseException as ex:
                             import traceback as tb
                             tb.print_exc()
+                            import sys
+                            sys.stderr.flush()
                             self.send('PRIVMSG '+where_message+' :\x02!k error:\x02 '+str(ex)+'\r\n')
                             continue
+                    
+                    #print(__name__, "before set_prev_msg: message='"+str(message)+"', sender_mask='"+str(sender_mask)+"'")
+                    if message is not None and sender_mask is not None:
+                        #print(__name__, "set_prev_msg")
+                        set_prev_msg(mask2ctx, sender_mask, message)
+                        #print(__name__, "set_prev_msg left")
 
                     if self.enableother1 or self.connection_setting_or_None("enable_hextoip"):
                         if ':!hextoip' in lineJoined and dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
@@ -1177,12 +1264,15 @@ class MyBot:
                             print("self.send_res_exc:", self.send_res_exc)
                             print("where_mes_exc:", where_mes_exc)
                             self.send('PRIVMSG %s :%s\r\n'%(where_mes_exc,self.send_res_exc))
+
             except KeyboardInterrupt as e:
                 raise e
             except:
                 import traceback as tb 
                 tb.print_exc()
-                print("self.irc_socket.close(), iterate");
+                import sys
+                sys.stderr.flush()
+                print("self.irc_socket.close(), iterate",flush=True);
                 try:
                     self.irc_socket.close()
                 except KeyboardInterrupt as e:
