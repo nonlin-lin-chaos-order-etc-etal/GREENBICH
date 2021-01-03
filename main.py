@@ -15,6 +15,8 @@ import traceback
 
 LOG_TRACE = False
 
+ENABLE_EXMO = True
+
 def get_create_ctx_from_mask2ctx(mask2ctx, mask):
     if mask in mask2ctx:
         ctx = mask2ctx[mask]
@@ -164,6 +166,12 @@ def latest_news_google_news_ru():
 
 def format_currency(value):
     return "{:0,.2f}".format(float(value))
+
+def format_total_cap(total_market_cap_usd):
+    total_market_cap_usd_billions = float(total_market_cap_usd) / 1.0e9
+    b = "{:0,.0f}".format(total_market_cap_usd_billions)+"B USD"
+    p = "{:0,.3f}".format(total_market_cap_usd_billions/60000.0*100.0)+'% of entire world cap e.g. 60T USD'
+    return b+" ("+p+')'
 
 def fetch_last_hour_new_news(old_news_cache=None, kwlist=None):
     array = get_trending_searches(country_str="russia", kwlist=kwlist)
@@ -1147,6 +1155,8 @@ class MyBot:
                             
                             session = Session()
                             session.headers.update(headers)
+
+                            rate_cmc_str = "CoinMarketCap: "
                             
                             try:
                               print('!курс session.get url='+url)
@@ -1160,10 +1170,74 @@ class MyBot:
                               eth_usd_str = str(format_currency(eth_usd))
                               dash_usd_str = str(format_currency(dash_usd))
                               
-                              rate_cmc_str = 'Курс CoinMarketCap: \x02BTC/USD:\x02 '+btc_usd_str+' \x02ETH/USD:\x02 '+eth_usd_str+' \x02DASH/USD:\x02 '+dash_usd_str+"."
+                              rate_cmc_str += '\x02BTC/USD:\x02 '+btc_usd_str+' \x02ETH/USD:\x02 '+eth_usd_str+' \x02DASH/USD:\x02 '+dash_usd_str
 
                             except (ConnectionError, Timeout, TooManyRedirects) as e:
+                              import traceback as tb
+                              tb.print_exc()
+                              rate_cmc_str += str(e)
+
+                            url = 'https://pro-api.coinmarketcap.com/v1/global-metrics/quotes/latest'
+                            parameters = {}
+
+                            try:
+                              print('!cmc-global-metrics session.get url='+url)
+                              response = session.get(url, params=parameters)
+                              cmc = json.loads(response.text)
+                              if LOG_TRACE: print("cmc global-metrics:", cmc)
+                              total_market_cap_usd = cmc["data"]["quote"]["USD"]["total_market_cap"]
+                              total_market_cap_str = str(format_total_cap(total_market_cap_usd))
+                              
+                              rate_cmc_str += ' \x02Total Crypto Cap:\x02 ' + total_market_cap_str + "."
+
+                            except (ConnectionError, Timeout, TooManyRedirects) as e:
+                              import traceback as tb
+                              tb.print_exc()
+                              rate_cmc_str += "; "+str(e)
+
+
+                            # docs: https://docs.kuna.io/docs/%D0%BF%D0%BE%D1%81%D0%BB%D0%B5%D0%B4%D0%BD%D0%B8%D0%B5-%D0%B4%D0%B0%D0%BD%D0%BD%D1%8B%D0%B5-%D0%BF%D0%BE-%D1%80%D1%8B%D0%BD%D0%BA%D1%83-%D1%82%D0%B8%D0%BA%D0%B5%D1%80%D1%8B
+                            """
+                            [
+							  [
+							    "btcuah",   # символ рынка [0]
+							    208001,     # цена BID [1]
+							    11200693,   # объем ордербука BID 2
+							    208499,     # цена ASK [3]
+							    29.255569,  # объем ордербука ASK 4
+							    5999,       # изменение цены за 24 часа в котируемой валюте 5
+							    -2.8,       # изменение цены за 24 часа в процентах 6
+							    208001,     # последняя цена 7
+							    11.3878,    # объем торгов за 24 часа в базовой валюте VOL24 [8]
+							    215301,     # максимальная цена за 24 часа 9
+							    208001      # минимальная цена за 24 часа 10
+							  ]
+							]
+							"""
+                            url = 'https://api.kuna.io/v3/tickers?symbols=tonusdt'
+                            parameters = {
+                            }
+                            headers = {
+                              'Accepts': 'application/json',
+                            }
+                            
+                            try:
+                              print('!курс session.get url='+url)
+                              response = session.get(url, params=parameters)
+                              retval = json.loads(response.text)
+                              if LOG_TRACE: print("kuna:", retval)
+                              bid = retval[0][1]
+                              ask = retval[0][3]
+                              vol24 = retval[0][8]
+                              bid_str = str(format_currency(bid))
+                              ask_str = str(format_currency(ask))
+                              vol24_str = str(format_currency(vol24))
+                              
+                              kuna_str = 'Kuna.io \x02TON/USDT\x02: BID '+bid_str+' ASK '+ask_str+' VOL24 '+vol24_str+"."
+                            except (ConnectionError, Timeout, TooManyRedirects) as e:
                               print(e)
+                              kuna_str = 'Kuna.io error: '+str(e)
+
 
                             btcToUsdFloat = None
                             btcToRurFloat = None
@@ -1235,10 +1309,11 @@ class MyBot:
                                     'ETH/USD S '+str(format_currency(exmo_ETH_USD_json["sell_price"]))+' B '+str(format_currency(exmo_ETH_USD_json["buy_price"]))+" | "+ \
                                     "BTC/RUR S "+str(format_currency(float(exmo_ticker["BTC_RUB"]["sell_price"])))+' B '+str(format_currency(float(exmo_ticker["BTC_RUB"]["buy_price"])))+"."
 
-
                             except (ConnectionError, Timeout, TooManyRedirects) as e:
                               print(e)
 
+                            #btcToRurFloat = None
+                            is_dialogue_with_master = False
                             if btcToRurFloat is not None and is_dialogue_with_master:
                                 gnome2rur = btcToRurFloat * gnome_btc_amount2_BTC_float
                                 gnomeDeltaGlobalRur = gnome2rur-gnome1rur
@@ -1249,10 +1324,19 @@ class MyBot:
                                 gnomeHodlDeltaStr="Всего выросло: %s%s руб. Локально: %s%s руб. — %s" % ( \
                                             ("+" if gnomeDeltaGlobalRur>=0 else "") , format_currency(gnomeDeltaGlobalRur) , \
                                             ("+" if gnomeDeltaLocalRur>=0 else "") , format_currency(gnomeDeltaLocalRur) , \
-        ("растёт денежка, растёт!" if gnomeDeltaLocalRur>=0 else "убытки-с =( читаем книжку! http://knijka.i2p/"));
+                                                ("растёт денежка, растёт!"  if gnomeDeltaLocalRur>=0 
+                                                                            else "убытки-с =( читаем книжку! http://knijka.i2p/"));
                             else:
                                 gnomeHodlDeltaStr="??? руб.";
-                            self.send_res_exc = '%s | %s | %s' % (str(fe_msg), rate_cmc_str, ircProtocolDisplayText_exmo) #, gnomeHodlDeltaStr
+
+                            # Bitcoin.com Markets API
+                            # Coming soon
+                            # https://developer.bitcoin.com/
+
+                            if ENABLE_EXMO:
+                                self.send_res_exc = '%s | %s | %s | %s' % (str(fe_msg), rate_cmc_str, ircProtocolDisplayText_exmo, kuna_str) #, gnomeHodlDeltaStr
+                            else:
+                                self.send_res_exc = '%s | %s | %s' % (str(fe_msg), rate_cmc_str, kuna_str) #, gnomeHodlDeltaStr
                             print("self.send_res_exc:", self.send_res_exc)
                             print("where_mes_exc:", where_mes_exc, flush=True)
                             self.send('PRIVMSG %s :\x033%s\r\n'%(where_mes_exc,self.send_res_exc))

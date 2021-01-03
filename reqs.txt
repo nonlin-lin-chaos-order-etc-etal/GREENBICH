@@ -3,7 +3,7 @@ asn1crypto==0.24.0
 certifi==2019.11.28
 cffi==1.14.0
 chardet==3.0.4
-cryptography==2.1.4
+cryptography
 dnspython==1.16.0
 docopt==0.6.2
 httplib2==0.9.2
@@ -15,9 +15,9 @@ keyrings.alt==3.0
 launchpadlib==1.10.6
 lazr.restfulclient==0.13.5
 lazr.uri==1.0.3
-libvirt-python==5.10.0
-libxml2-python3==2.9.5
-lxml==4.5.0
+libvirt-python
+libxml2-python3
+lxml
 Mako==1.0.7
 MarkupSafe==1.1.1
 nbxmpp==0.6.4
@@ -28,7 +28,7 @@ olefile==0.45.1
 pandas==1.0.3
 pbr==5.4.4
 pexpect==4.2.1
-Pillow==5.1.0
+Pillow
 pkg-resources==0.0.0
 precis-i18n==1.0.0
 protobuf==3.0.0
@@ -44,9 +44,9 @@ python-dateutil==2.8.1
 pythondialog==3.5.1
 pytrends==4.7.2
 pytz==2019.3
-pyxattr==0.6.0
-pyxdg==0.25
-PyYAML==3.12
+pyxattr
+pyxdg
+PyYAML
 qrcode==5.3
 reportlab==3.4.0
 requests==2.23.0
