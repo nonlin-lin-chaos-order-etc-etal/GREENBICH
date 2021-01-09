@@ -168,9 +168,9 @@ def format_currency(value):
     return "{:0,.2f}".format(float(value))
 
 def format_total_cap(total_market_cap_usd):
-    total_market_cap_usd_billions = float(total_market_cap_usd) / 1.0e9
-    b = "{:0,.0f}".format(total_market_cap_usd_billions)+"B USD"
-    p = "{:0,.3f}".format(total_market_cap_usd_billions/60000.0*100.0)+'% of entire world cap e.g. 60T USD'
+    total_market_cap_usd_t = float(total_market_cap_usd) / 1.0e12
+    b = "{:0,.2f}".format(total_market_cap_usd_t)+"T USD"
+    p = "{:0,.2f}".format(total_market_cap_usd_t/60.0*100.0)+'% of entire world cap e.g. 60T USD'
     return b+" ("+p+')'
 
 def fetch_last_hour_new_news(old_news_cache=None, kwlist=None):
