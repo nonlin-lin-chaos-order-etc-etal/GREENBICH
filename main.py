@@ -1,4 +1,8 @@
+from random import choice
+import traceback as tb
+import traceback
 import socket
+import pytz
 import socks
 import sys
 import time
@@ -11,11 +15,18 @@ from urllib.parse import unquote
 from urllib.parse import quote as urlencode
 from settings import settings as option
 from threading import Thread
-import traceback
+import traceback, datetime
 
 LOG_TRACE = False
 
-ENABLE_EXMO = True
+ENABLE_EXMO = False
+
+def settings_by_key(key):
+    return config[key]
+
+def getconfig():
+    return config
+
 
 def get_create_ctx_from_mask2ctx(mask2ctx, mask):
     if mask in mask2ctx:
@@ -35,10 +46,15 @@ def replace_nick_mask2ctx(mask2ctx, prev_mask, new_mask):
     mask2ctx[new_mask]=ctx
 
 def set_prev_msg(mask2ctx, mask, message):
-    print(__name__, "set_prev_msg(, mask='"+str(mask)+"', message="+str(message)+")", flush=True)
-    if mask is None or message is None: return
+    print(__name__, f"set_prev_msg enter, args: (, mask='{mask}', message='{message}')", flush=True)
+    if mask is None or message is None:
+        print(__name__, "set_prev_msg point 1, leaving", flush=True)
+        return
+    #print(__name__, "set_prev_msg point 2", flush=True)
     ctx = get_create_ctx_from_mask2ctx(mask2ctx, mask)
+    #print(__name__, "set_prev_msg point 3", flush=True)
     ctx["prev_msg"]=message
+    print(__name__, "set_prev_msg point 4, leaving", flush=True)
 
 def get_prev_msg(mask2ctx, mask):
     ctx = get_create_ctx_from_mask2ctx(mask2ctx, mask)
@@ -507,6 +523,103 @@ class MyBot:
                 resultUrl = self.news_search_ctxwebsrch(kwlist[0],1)
                 self.sendmsg(where_mes_exc, "%s" % (resultUrl if resultUrl else "Новостей не найдено"))
 
+    def write_quotes(self):
+        print(__name__, "writing quotes.json")
+        with open('quotes.json', 'w') as myfile:
+            myfile.write(json.dumps(self.quotes_array))
+
+    def read_quotes(self):
+        # read file
+        #try:
+        print(__name__, "reading quotes.json")
+        with open('quotes.json', 'r') as myfile:
+            quotes_array=myfile.read()
+        self.quotes_array = json.loads(quotes_array)
+        #except:
+        #    traceback.print_exc()
+        #    print(__name__, "warning: setting empty quotes_array")
+        #    quotes_array = []
+
+    #tok1[0] :nick!uname@addr.i2p
+    #tok1[1] PRIVMSG
+
+    #tok1[2] #ru
+    # OR
+    #tok1[2] BichBot
+
+    #tok1[3] :!!aq/!!q
+    #tok1[4:] tokens
+    def print_quote(self, tok1):
+        at = tok1[2]
+        query = " ".join(tok1[4:])
+        try:
+            num = int(query)
+        except ValueError:
+            self.sendmsg(at, f"Need a positive int.")
+            return
+        if num > 0:
+            num = num - 1
+            self.read_quotes()
+            if num >= len(self.quotes_array):
+                self.sendmsg(at, f"Max quote number: {len(self.quotes_array)}.")
+            else:
+                q = self.quotes_array[num]
+                poster = q['posted-by'].split("!")[0]
+                self.sendmsg(at, f"[{num+1}] {q['text']} ({poster} at {q['date-posted']})")
+        else:
+            self.sendmsg(at, f"Need a positive int.")
+
+    def add_quote(self, tok1):
+        self.read_quotes()
+        length = len(self.quotes_array)
+        quote = " ".join(tok1[4:])
+        self.quotes_array.append({
+            "posted-by": tok1[0][1:],
+            "text": quote,
+            "date-posted": str(datetime.datetime.now(pytz.utc))
+        })
+        at = tok1[2]
+        self.write_quotes()
+        self.sendmsg(at, f"Quote added: [{length+1}] {quote}")
+        pass
+    def maybe_quotes(self, str_incoming_line):
+        tok1 = str_incoming_line.split(" ")
+        if len(tok1)<3: return False
+        if tok1[1] != "PRIVMSG": return False
+        cmdtok = tok1[3].split(":")
+        if len(cmdtok)<2: return False
+        cmd = cmdtok[1]
+        if not cmd.startswith("!!"): return False
+        if cmd.startswith("!!q"):
+            self.print_quote(tok1)
+            return True
+        if cmd.startswith("!!aq"):
+            self.add_quote(tok1)
+            return True
+        return False
+
+
+    def help_make_choice(self, message):
+        if ' или ' in message:
+            s = message.split(' или ')
+            if len(s) > 1:
+                return choice(s).strip('?')
+        if message.endswith('?'):
+            return choice(['да', 'нет']) 
+        return None
+
+    def maybe_choice(self, bot_nick, str_incoming_line):
+        tok1 = str_incoming_line.split(" ")
+        if len(tok1)<3: return False
+        if tok1[1] != "PRIVMSG": return False
+        message = " ".join(tok1[3:])[1:]
+        if not bot_nick in message: return False
+        reply = self.help_make_choice(message)
+        if not reply: return False
+        at = tok1[2]
+        self.sendmsg(at, reply)
+        return True
+
     def maybe_print_search(self, bot_nick, str_incoming_line):
         if is_search_command(bot_nick, str_incoming_line):
             kwlist = []
@@ -812,7 +925,7 @@ class MyBot:
                                 name = src.split('!')[0][1:]
                                 sender_mask = src[1:]
                                 message = msg[1:]
-                                print(__name__, "msg: '"+str(message)+"'",flush=True)
+                                print(__name__, f"message: '{message}'",flush=True)
                             try:
                                 ip_user=None#"data.split('@',1)[1].split(' ',1)[0]
                             except:
@@ -880,9 +993,17 @@ class MyBot:
                     #print(__name__, "before set_prev_msg: message='"+str(message)+"', sender_mask='"+str(sender_mask)+"'")
                     if message is not None and sender_mask is not None:
                         #print(__name__, "set_prev_msg")
-                        set_prev_msg(mask2ctx, sender_mask, message)
-                        #print(__name__, "set_prev_msg left")
+                        try:
+                            set_prev_msg(mask2ctx, sender_mask, message)
+                            print(__name__, "set_prev_msg left ok", flush=True)
+                        except KeyboardInterrupt as e:
+                            print(__name__, "set_prev_msg left with exception: KeyboardInterrupt", flush=True)
+                            raise e
+                        except:
+                            tb.print_exc()
+                            print(__name__, "set_prev_msg left with exception", flush=True)
 
+                    print(__name__, "point 3.1", flush=True)
                     if self.enableother1 or self.connection_setting_or_None("enable_hextoip"):
                         if ':!hextoip' in lineJoined and dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
                             print(__file__, "hextoip test success")
@@ -892,6 +1013,7 @@ class MyBot:
                             except KeyboardInterrupt as e:
                                 raise e
                             except BaseException as e:
+                                tb.print_exc()
                                 self.send('PRIVMSG '+communicationsLineName+' :\x02hextoip:\x02 error: '+str(e)+'\r\n')
                             continue
 
@@ -910,14 +1032,15 @@ class MyBot:
                         self.send('NOTICE %s : ***Функция перевода с английских букв на русские: \"!п tekst perevoda\", пример: \"!п ghbdtn\r\n' %(name))
 
                         """
-                    #-----------Anti_flood-------------
+                    #-----------Antiflood-------------
 
-                    # Count of while.  
+                    print(__name__, "point 3.2", flush=True)
                     while_count += 1
                     if while_count == 50:
                         while_count = 0
                         dict_count = {}
                             
+                    print(__name__, "point 3.3", flush=True)
                     # Insert nick in dict: dic_count.  
                     if data.find('PRIVMSG') != -1 and name not in dict_count and\
                        name not in list_floodfree:
@@ -933,6 +1056,7 @@ class MyBot:
                        and name not in list_floodfree:
                         dict_count[name] += int(1)
                     
+                    print(__name__, "point 3.4", flush=True)
                     # Add key and value in massiv.  
                     if data.find('PRIVMSG') != -1 and name not in list_floodfree:
                         dict_users[name] = message
@@ -963,6 +1087,7 @@ class MyBot:
                         self.send(mes_per_bot)
                     """
                     #---------Whois service--------------------------
+                    print(__name__, "point 2.3", flush=True)
 
                     if self.enableother1:
                       if 'PRIVMSG '+channel+' :!где айпи' in data\
@@ -1013,6 +1138,7 @@ class MyBot:
                                     print('Exception')  
                     #---------Voting--------------------------------
                                 
+                    print(__name__, "point 2.2", flush=True)
                     t = time.time()
                     if self.enableother1:
                       if '!стоп опрос' in data and 'PRIVMSG' in data and name == masterName:
@@ -1086,6 +1212,7 @@ class MyBot:
                       if data.find('PRIVMSG '+channel+' :!опрос') != -1 and t2 != 0:
                         count_voting += 1
 
+                    print(__name__, "point 2.1", flush=True)
                     # If voting is not end, and users self.send '!голосование...': self.send message in channel.  
                     t4 = time.time()
                     if self.enableother1:
@@ -1111,12 +1238,22 @@ class MyBot:
                         self.send('PRIVMSG '+channel+' : Опрос окончен!\r\n')
                         self.send(voting_results)
                     """
+                    print("calling maybe_print_news()", flush=True)
                     self.maybe_print_news(self.botName, data)
                     self.maybe_print_search(self.botName, data)
+                    if self.maybe_quotes(data):
+                        print("maybe_quotes() returned True, continuing loop", flush=True)
+                        continue
+                    else:
+                        print("maybe_quotes() returned False", flush=True)
+                    # if self.maybe_choice(self.botName, data): continue
+
                     #:nick!uname@addr.i2p PRIVMSG #ru :!курс
                     #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
                     where_mes_exc = communicationsLineName
+                    print(__name__, "point 4.1", flush=True)
                     if len(dataTokensDelimitedByWhitespace) > 3:
+                      print(__name__, "point 4.2", flush=True)
 
                       fe_msg = "FreiEx(GST): N/A"
 
@@ -1124,239 +1261,249 @@ class MyBot:
                       is_in_private_query = where_mes_exc == self.botName
                       bot_mentioned = self.botName in line
                       commWithBot = is_in_private_query or bot_mentioned
-                      if 'курс' in line and commWithBot:
-                        print('курс')
-                        is_dialogue_with_master = False
-                        if where_mes_exc == self.botName: #/query
-                            tokensNick1=dataTokensDelimitedByWhitespace[0].split("!")
-                            tokensNick1=tokensNick1[0].split(":")
-                            tokensNick1=tokensNick1[1]
-                            where_mes_exc=tokensNick1
-                            is_dialogue_with_master = master_secret in line
-                            if is_dialogue_with_master: self.send('PRIVMSG %s :%s\r\n'%(where_mes_exc,"hello, Master!"))
-                        print('курс куда слать будем:', where_mes_exc, "is_dialogue_with_master:", is_dialogue_with_master)
-
-                        try:
-                            #This example uses Python 2.7 and the python-request library.
-                            
-                            from requests import Request, Session
-                            from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
-                            import json
-                            
-                            url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
-                            parameters = {
-                              'symbol':'BTC,ETH,DASH',
-                              'convert':'USD'
-                            }
-                            headers = {
-                              'Accepts': 'application/json',
-                              'X-CMC_PRO_API_KEY': self.coinmarketcap_apikey,
-                            }
-                            
-                            session = Session()
-                            session.headers.update(headers)
-
-                            rate_cmc_str = "CoinMarketCap: "
-                            
-                            try:
-                              print('!курс session.get url='+url)
-                              response = session.get(url, params=parameters)
-                              cmc = json.loads(response.text)
-                              if LOG_TRACE: print("cmc:", cmc)
-                              btc_usd = cmc["data"]["BTC"]["quote"]["USD"]["price"]
-                              eth_usd = cmc["data"]["ETH"]["quote"]["USD"]["price"]
-                              dash_usd = cmc["data"]["DASH"]["quote"]["USD"]["price"]
-                              btc_usd_str = str(format_currency(btc_usd))
-                              eth_usd_str = str(format_currency(eth_usd))
-                              dash_usd_str = str(format_currency(dash_usd))
-                              
-                              rate_cmc_str += '\x02BTC/USD:\x02 '+btc_usd_str+' \x02ETH/USD:\x02 '+eth_usd_str+' \x02DASH/USD:\x02 '+dash_usd_str
-
-                            except (ConnectionError, Timeout, TooManyRedirects) as e:
-                              import traceback as tb
-                              tb.print_exc()
-                              rate_cmc_str += str(e)
-
-                            url = 'https://pro-api.coinmarketcap.com/v1/global-metrics/quotes/latest'
-                            parameters = {}
-
-                            try:
-                              print('!cmc-global-metrics session.get url='+url)
-                              response = session.get(url, params=parameters)
-                              cmc = json.loads(response.text)
-                              if LOG_TRACE: print("cmc global-metrics:", cmc)
-                              total_market_cap_usd = cmc["data"]["quote"]["USD"]["total_market_cap"]
-                              total_market_cap_str = str(format_total_cap(total_market_cap_usd))
-                              
-                              rate_cmc_str += ' \x02Total Crypto Cap:\x02 ' + total_market_cap_str + "."
-
-                            except (ConnectionError, Timeout, TooManyRedirects) as e:
-                              import traceback as tb
-                              tb.print_exc()
-                              rate_cmc_str += "; "+str(e)
-
-
-                            # docs: https://docs.kuna.io/docs/%D0%BF%D0%BE%D1%81%D0%BB%D0%B5%D0%B4%D0%BD%D0%B8%D0%B5-%D0%B4%D0%B0%D0%BD%D0%BD%D1%8B%D0%B5-%D0%BF%D0%BE-%D1%80%D1%8B%D0%BD%D0%BA%D1%83-%D1%82%D0%B8%D0%BA%D0%B5%D1%80%D1%8B
-                            """
-                            [
-							  [
-							    "btcuah",   # символ рынка [0]
-							    208001,     # цена BID [1]
-							    11200693,   # объем ордербука BID 2
-							    208499,     # цена ASK [3]
-							    29.255569,  # объем ордербука ASK 4
-							    5999,       # изменение цены за 24 часа в котируемой валюте 5
-							    -2.8,       # изменение цены за 24 часа в процентах 6
-							    208001,     # последняя цена 7
-							    11.3878,    # объем торгов за 24 часа в базовой валюте VOL24 [8]
-							    215301,     # максимальная цена за 24 часа 9
-							    208001      # минимальная цена за 24 часа 10
-							  ]
-							]
-							"""
-                            url = 'https://api.kuna.io/v3/tickers?symbols=tonusdt'
-                            parameters = {
-                            }
-                            headers = {
-                              'Accepts': 'application/json',
-                            }
-                            
-                            try:
-                              print('!курс session.get url='+url)
-                              response = session.get(url, params=parameters)
-                              retval = json.loads(response.text)
-                              if LOG_TRACE: print("kuna:", retval)
-                              bid = retval[0][1]
-                              ask = retval[0][3]
-                              vol24 = retval[0][8]
-                              bid_str = str(format_currency(bid))
-                              ask_str = str(format_currency(ask))
-                              vol24_str = str(format_currency(vol24))
-                              
-                              kuna_str = 'Kuna.io \x02TON/USDT\x02: BID '+bid_str+' ASK '+ask_str+' VOL24 '+vol24_str+"."
-                            except (ConnectionError, Timeout, TooManyRedirects) as e:
-                              print(e)
-                              kuna_str = 'Kuna.io error: '+str(e)
-
-
-                            btcToUsdFloat = None
-                            btcToRurFloat = None
-                            #exmo
-                            try:
-                              import urllib.request
-                              url = "http://api.exmo.com/v1/ticker/"
-                              print("querying %s"%(url,))
-                              exmo_ticker = urllib.request.urlopen(url).read()
-                              exmo_ticker = json.loads(exmo_ticker)
-                              #print("exmo_ticker:", exmo_ticker)
-                              #"USD_RUB":{"buy_price":"63.520002", "sell_price":"63.7", "last_trade":"63.678587", "high":"64.21396756", "low":"63.35", "avg":"63.78778311", "vol":"281207.5729779", "vol_curr":"17906900.90093241", "updated":1564935589 }
-                              #"BTC_RUB":{"buy_price":"692674.53013854","sell_price":"694990", "last_trade":"693302.09","high":"700000","low":"675000.00100102", "avg":"687445.89449801","vol":"223.90253022", "vol_curr":"155232092.15894149", "updated":1564935590 }
-                              #exmo_BTC_RUB_json = exmo_ticker["BTC_RUB"]
-                              exmo_BTC_USD_json = exmo_ticker["BTC_USD"] if not 'error' in exmo_ticker else None
-                              exmo_ETH_USD_json = exmo_ticker["ETH_USD"] if not 'error' in exmo_ticker else None
-                              #exmo_USD_RUB_json = exmo_ticker["USD_RUB"]
-
-                              exmo_BTC_USD_sell_price = exmo_BTC_USD_json["sell_price"] if not 'error' in exmo_ticker else None
-                              btcToUsdFloat = float(exmo_BTC_USD_sell_price) if not 'error' in exmo_ticker else None
-                              btcToRurFloat = float(exmo_ticker["BTC_RUB"]["buy_price"]) if not 'error' in exmo_ticker else None
-
-                              try:
-                                  import urllib.request
-                                  url = "https://api.freiexchange.com/public/ticker/GST"
-                                  print("querying %s"%(url,))
-                                  req = urllib.request.Request(
-                                        url, 
-                                        data=None, 
-                                        headers={
-                                            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
-                                        }
-                                  )
-                                  fe_ticker = urllib.request.urlopen(req).read()
-                                  # urllib.request.urlopen(url).read()
-                                  print("resp:",fe_ticker,flush=True)
-                                  fe_ticker = json.loads(fe_ticker)
-                                  if "GST_BTC" in fe_ticker:
-                                    gst_resp = fe_ticker["GST_BTC"][0]
-                                    volume24h_gst = float(gst_resp["volume24h"])
-                                    volume24h_btc = float(gst_resp["volume24h_btc"])
-                                    volume24h_rur = btcToRurFloat*volume24h_btc if btcToRurFloat is not None else None
-                                    last = float(gst_resp["last"])
-                                    last_rur = btcToRurFloat*last if btcToRurFloat is not None else None
-                                    highestBuy = float(gst_resp["highestBuy"])
-                                    highestBuy_rur = btcToRurFloat*highestBuy if btcToRurFloat is not None else None
-                                    lowestSell = float(gst_resp["lowestSell"])
-                                    lowestSell_rur = btcToRurFloat*lowestSell if btcToRurFloat is not None else None
-
-                                    fe_msg = "FreiEx(GST): VOL24:"+fmt2(volume24h_rur)+"RUR LAST:"+fmt2(last_rur)+"RUR S:"+fmt2(lowestSell_rur)+"RUR B:"+fmt2(highestBuy_rur)+"RUR"
-                                  else:
-                                    fe_msg = "Error in FreiEx(GST) response"
-                              except KeyboardInterrupt as ex:
-                                print("ex:",str(ex),flush=True)
-                                raise e
-                              except BaseException as ex:
-                                print("ex:",str(ex),flush=True)
-                                import traceback as tb 
-                                tb.print_exc()
-                                import sys
-                                sys.stdout.flush()
-                                sys.stderr.flush()
-                              print("after freiexchange poll", flush=True)
-                              if 'error' in exmo_ticker:
-                                ircProtocolDisplayText_exmo="Exmo API returned error: '%s'" % str(exmo_ticker['error'])
-                              else:
-                                ircProtocolDisplayText_exmo = 'Курс Exmo: '+ \
-                                    'BTC/USD S '+str(format_currency(exmo_BTC_USD_sell_price))+' B '+str(format_currency(exmo_BTC_USD_json["buy_price"]))+" | "+ \
-                                    'ETH/USD S '+str(format_currency(exmo_ETH_USD_json["sell_price"]))+' B '+str(format_currency(exmo_ETH_USD_json["buy_price"]))+" | "+ \
-                                    "BTC/RUR S "+str(format_currency(float(exmo_ticker["BTC_RUB"]["sell_price"])))+' B '+str(format_currency(float(exmo_ticker["BTC_RUB"]["buy_price"])))+"."
-
-                            except (ConnectionError, Timeout, TooManyRedirects) as e:
-                              print(e)
-
-                            #btcToRurFloat = None
+                      print(__name__, f"point 4.3, line: '{line}', commWithBot: '{commWithBot}'", flush=True)
+                      try:
+                        if 'курс' in line and commWithBot:
+                            print(__name__, 'курс', flush=True)
                             is_dialogue_with_master = False
-                            if btcToRurFloat is not None and is_dialogue_with_master:
-                                gnome2rur = btcToRurFloat * gnome_btc_amount2_BTC_float
-                                gnomeDeltaGlobalRur = gnome2rur-gnome1rur
-                                measurementRur1=measurementRur2
-                                measurementRur2=gnome2rur
-                                gnomeDeltaLocalRur = measurementRur2-measurementRur1
-                                print("gnome_btc_amount2_BTC_float:", gnome_btc_amount2_BTC_float, "gnome2rur:", gnome2rur, "btcToRurFloat:", btcToRurFloat, "gnomeDeltaGlobalRur:", gnomeDeltaGlobalRur, "measurementRur1:", measurementRur1, "measurementRur2:", measurementRur2, "gnomeDeltaLocalRur:", gnomeDeltaLocalRur);
-                                gnomeHodlDeltaStr="Всего выросло: %s%s руб. Локально: %s%s руб. — %s" % ( \
-                                            ("+" if gnomeDeltaGlobalRur>=0 else "") , format_currency(gnomeDeltaGlobalRur) , \
-                                            ("+" if gnomeDeltaLocalRur>=0 else "") , format_currency(gnomeDeltaLocalRur) , \
-                                                ("растёт денежка, растёт!"  if gnomeDeltaLocalRur>=0 
-                                                                            else "убытки-с =( читаем книжку! http://knijka.i2p/"));
-                            else:
-                                gnomeHodlDeltaStr="??? руб.";
+                            if where_mes_exc == self.botName: #/query
+                                tokensNick1=dataTokensDelimitedByWhitespace[0].split("!")
+                                tokensNick1=tokensNick1[0].split(":")
+                                tokensNick1=tokensNick1[1]
+                                where_mes_exc=tokensNick1
+                                is_dialogue_with_master = master_secret in line
+                                if is_dialogue_with_master: self.send('PRIVMSG %s :%s\r\n'%(where_mes_exc,"hello, Master!"))
+                            print('курс куда слать будем:', where_mes_exc, "is_dialogue_with_master:", is_dialogue_with_master, flush=True)
 
-                            # Bitcoin.com Markets API
-                            # Coming soon
-                            # https://developer.bitcoin.com/
+                            try:
+                                #This example uses Python 2.7 and the python-request library.
+                                
+                                from requests import Request, Session
+                                from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
+                                import json
+                                
+                                url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
+                                parameters = {
+                                  'symbol':'BTC,ETH,DASH',
+                                  'convert':'USD'
+                                }
+                                headers = {
+                                  'Accepts': 'application/json',
+                                  'X-CMC_PRO_API_KEY': self.coinmarketcap_apikey,
+                                }
+                                
+                                session = Session()
+                                session.headers.update(headers)
 
-                            if ENABLE_EXMO:
-                                self.send_res_exc = '%s | %s | %s | %s' % (str(fe_msg), rate_cmc_str, ircProtocolDisplayText_exmo, kuna_str) #, gnomeHodlDeltaStr
-                            else:
-                                self.send_res_exc = '%s | %s | %s' % (str(fe_msg), rate_cmc_str, kuna_str) #, gnomeHodlDeltaStr
-                            print("self.send_res_exc:", self.send_res_exc)
-                            print("where_mes_exc:", where_mes_exc, flush=True)
-                            self.send('PRIVMSG %s :\x033%s\r\n'%(where_mes_exc,self.send_res_exc))
-                        except (ConnectionError, Timeout, TooManyRedirects) as e:
-                            print(e)
-                        except KeyError as e:
-                            print(e)
-                            self.send_res_exc = 'error in response json: %s' % str(e)
-                            print("self.send_res_exc:", self.send_res_exc)
-                            print("where_mes_exc:", where_mes_exc)
-                            self.send('PRIVMSG %s :%s\r\n'%(where_mes_exc,self.send_res_exc))
+                                rate_cmc_str = "CoinMarketCap: "
+                                
+                                try:
+                                  print('!курс session.get url='+url)
+                                  response = session.get(url, params=parameters)
+                                  cmc = json.loads(response.text)
+                                  if LOG_TRACE: print("cmc:", cmc)
+                                  btc_usd = cmc["data"]["BTC"]["quote"]["USD"]["price"]
+                                  eth_usd = cmc["data"]["ETH"]["quote"]["USD"]["price"]
+                                  dash_usd = cmc["data"]["DASH"]["quote"]["USD"]["price"]
+                                  btc_usd_str = str(format_currency(btc_usd))
+                                  eth_usd_str = str(format_currency(eth_usd))
+                                  dash_usd_str = str(format_currency(dash_usd))
+                                  
+                                  rate_cmc_str += '\x02BTC/USD:\x02 '+btc_usd_str+' \x02ETH/USD:\x02 '+eth_usd_str+' \x02DASH/USD:\x02 '+dash_usd_str
+
+                                except (ConnectionError, Timeout, TooManyRedirects) as e:
+                                  tb.print_exc()
+                                  rate_cmc_str += str(e)
+
+                                url = 'https://pro-api.coinmarketcap.com/v1/global-metrics/quotes/latest'
+                                parameters = {}
+
+                                try:
+                                  print('!cmc-global-metrics session.get url='+url, flush=True)
+                                  response = session.get(url, params=parameters)
+                                  cmc = json.loads(response.text)
+                                  if LOG_TRACE: print("cmc global-metrics:", cmc)
+                                  total_market_cap_usd = cmc["data"]["quote"]["USD"]["total_market_cap"]
+                                  total_market_cap_str = str(format_total_cap(total_market_cap_usd))
+                                  
+                                  rate_cmc_str += ' \x02Total Crypto Cap:\x02 ' + total_market_cap_str + "."
+
+                                except (ConnectionError, Timeout, TooManyRedirects) as e:
+                                  import traceback as tb
+                                  tb.print_exc()
+                                  rate_cmc_str += "; "+str(e)
+
+
+                                # docs: https://docs.kuna.io/docs/%D0%BF%D0%BE%D1%81%D0%BB%D0%B5%D0%B4%D0%BD%D0%B8%D0%B5-%D0%B4%D0%B0%D0%BD%D0%BD%D1%8B%D0%B5-%D0%BF%D0%BE-%D1%80%D1%8B%D0%BD%D0%BA%D1%83-%D1%82%D0%B8%D0%BA%D0%B5%D1%80%D1%8B
+                                """
+                                [
+    							  [
+    							    "btcuah",   # символ рынка [0]
+    							    208001,     # цена BID [1]
+    							    11200693,   # объем ордербука BID 2
+    							    208499,     # цена ASK [3]
+    							    29.255569,  # объем ордербука ASK 4
+    							    5999,       # изменение цены за 24 часа в котируемой валюте 5
+    							    -2.8,       # изменение цены за 24 часа в процентах 6
+    							    208001,     # последняя цена 7
+    							    11.3878,    # объем торгов за 24 часа в базовой валюте VOL24 [8]
+    							    215301,     # максимальная цена за 24 часа 9
+    							    208001      # минимальная цена за 24 часа 10
+    							  ]
+    							]
+    							"""
+                                url = 'https://api.kuna.io/v3/tickers?symbols=tonusdt'
+                                parameters = {
+                                }
+                                headers = {
+                                  'Accepts': 'application/json',
+                                }
+                                
+                                try:
+                                  print('!курс session.get url='+url, flush=True)
+                                  response = session.get(url, params=parameters)
+                                  retval = json.loads(response.text)
+                                  if LOG_TRACE: print("kuna:", retval)
+                                  bid = retval[0][1]
+                                  ask = retval[0][3]
+                                  vol24 = retval[0][8]
+                                  bid_str = str(format_currency(bid))
+                                  ask_str = str(format_currency(ask))
+                                  vol24_str = str(format_currency(vol24))
+                                  
+                                  kuna_str = 'Kuna.io \x02TON/USDT\x02: BID '+bid_str+' ASK '+ask_str+' VOL24 '+vol24_str+"."
+                                except (ConnectionError, Timeout, TooManyRedirects) as e:
+                                  print(__name__, e, flush=True)
+                                  kuna_str = 'Kuna.io error: '+str(e)
+
+
+                                btcToUsdFloat = None
+                                btcToRurFloat = None
+                                #exmo and frei
+                                if ENABLE_EXMO:
+                                 try:
+                                  import urllib.request
+                                  url = "http://api.exmo.com/v1/ticker/"
+                                  print("querying %s"%(url,), flush=True)
+                                  exmo_ticker = json.loads(urllib.request.urlopen(url).read())
+                                  #print("exmo_ticker:", exmo_ticker)
+                                  #"USD_RUB":{"buy_price":"63.520002", "sell_price":"63.7", "last_trade":"63.678587", "high":"64.21396756", "low":"63.35", "avg":"63.78778311", "vol":"281207.5729779", "vol_curr":"17906900.90093241", "updated":1564935589 }
+                                  #"BTC_RUB":{"buy_price":"692674.53013854","sell_price":"694990", "last_trade":"693302.09","high":"700000","low":"675000.00100102", "avg":"687445.89449801","vol":"223.90253022", "vol_curr":"155232092.15894149", "updated":1564935590 }
+                                  #exmo_BTC_RUB_json = exmo_ticker["BTC_RUB"]
+                                  exmo_BTC_USD_json = exmo_ticker["BTC_USD"] if not 'error' in exmo_ticker else None
+                                  exmo_ETH_USD_json = exmo_ticker["ETH_USD"] if not 'error' in exmo_ticker else None
+                                  #exmo_USD_RUB_json = exmo_ticker["USD_RUB"]
+
+                                  exmo_BTC_USD_sell_price = exmo_BTC_USD_json["sell_price"] if not 'error' in exmo_ticker else None
+                                  btcToUsdFloat = float(exmo_BTC_USD_sell_price) if not 'error' in exmo_ticker else None
+                                  btcToRurFloat = float(exmo_ticker["BTC_RUB"]["buy_price"]) if not 'error' in exmo_ticker else None
+
+                                  try:
+                                      import urllib.request
+                                      url = "https://api.freiexchange.com/public/ticker/GST"
+                                      print("querying %s"%(url,), flush=True)
+                                      req = urllib.request.Request(
+                                            url, 
+                                            data=None, 
+                                            headers={
+                                                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
+                                            }
+                                      )
+                                      fe_ticker = urllib.request.urlopen(req).read()
+                                      # urllib.request.urlopen(url).read()
+                                      print("resp:",fe_ticker,flush=True)
+                                      fe_ticker = json.loads(fe_ticker)
+                                      if "GST_BTC" in fe_ticker:
+                                        gst_resp = fe_ticker["GST_BTC"][0]
+                                        volume24h_gst = float(gst_resp["volume24h"])
+                                        volume24h_btc = float(gst_resp["volume24h_btc"])
+                                        volume24h_rur = btcToRurFloat*volume24h_btc if btcToRurFloat is not None else None
+                                        last = float(gst_resp["last"])
+                                        last_rur = btcToRurFloat*last if btcToRurFloat is not None else None
+                                        highestBuy = float(gst_resp["highestBuy"])
+                                        highestBuy_rur = btcToRurFloat*highestBuy if btcToRurFloat is not None else None
+                                        lowestSell = float(gst_resp["lowestSell"])
+                                        lowestSell_rur = btcToRurFloat*lowestSell if btcToRurFloat is not None else None
+
+                                        fe_msg = "FreiEx(GST): VOL24:"+fmt2(volume24h_rur)+"RUR LAST:"+fmt2(last_rur)+"RUR S:"+fmt2(lowestSell_rur)+"RUR B:"+fmt2(highestBuy_rur)+"RUR"
+                                      else:
+                                        fe_msg = "Error in FreiEx(GST) response"
+                                  except KeyboardInterrupt as ex:
+                                    print("ex:",str(ex),flush=True)
+                                    raise e
+                                  except BaseException as ex:
+                                    print("ex:",str(ex),flush=True)
+                                    tb.print_exc()
+                                    import sys
+                                    sys.stdout.flush()
+                                    sys.stderr.flush()
+                                  print("after freiexchange poll", flush=True)
+                                  if 'error' in exmo_ticker:
+                                    ircProtocolDisplayText_exmo="Exmo API returned error: '%s'" % str(exmo_ticker['error'])
+                                  else:
+                                    ircProtocolDisplayText_exmo = 'Курс Exmo: '+ \
+                                        'BTC/USD S '+str(format_currency(exmo_BTC_USD_sell_price))+' B '+str(format_currency(exmo_BTC_USD_json["buy_price"]))+" | "+ \
+                                        'ETH/USD S '+str(format_currency(exmo_ETH_USD_json["sell_price"]))+' B '+str(format_currency(exmo_ETH_USD_json["buy_price"]))+" | "+ \
+                                        "BTC/RUR S "+str(format_currency(float(exmo_ticker["BTC_RUB"]["sell_price"])))+' B '+str(format_currency(float(exmo_ticker["BTC_RUB"]["buy_price"])))+"."
+
+                                 except (ConnectionError, Timeout, TooManyRedirects) as e:
+                                  print(__name__, e, flush=True)
+
+                                 #btcToRurFloat = None
+                                 is_dialogue_with_master = False
+                                 if btcToRurFloat is not None and is_dialogue_with_master:
+                                    gnome2rur = btcToRurFloat * gnome_btc_amount2_BTC_float
+                                    gnomeDeltaGlobalRur = gnome2rur-gnome1rur
+                                    measurementRur1=measurementRur2
+                                    measurementRur2=gnome2rur
+                                    gnomeDeltaLocalRur = measurementRur2-measurementRur1
+                                    print("gnome_btc_amount2_BTC_float:", gnome_btc_amount2_BTC_float, "gnome2rur:", gnome2rur, "btcToRurFloat:", btcToRurFloat, "gnomeDeltaGlobalRur:", gnomeDeltaGlobalRur, "measurementRur1:", measurementRur1, "measurementRur2:", measurementRur2, "gnomeDeltaLocalRur:", gnomeDeltaLocalRur, flush=True);
+                                    gnomeHodlDeltaStr="Всего выросло: %s%s руб. Локально: %s%s руб. — %s" % ( \
+                                                ("+" if gnomeDeltaGlobalRur>=0 else "") , format_currency(gnomeDeltaGlobalRur) , \
+                                                ("+" if gnomeDeltaLocalRur>=0 else "") , format_currency(gnomeDeltaLocalRur) , \
+                                                    ("растёт денежка, растёт!"  if gnomeDeltaLocalRur>=0 
+                                                                                else "убытки-с =( читаем книжку! http://knijka.i2p/"));
+                                 else:
+                                    gnomeHodlDeltaStr="??? руб.";
+
+                                # Bitcoin.com Markets API
+                                # Coming soon
+                                # https://developer.bitcoin.com/
+
+                                if ENABLE_EXMO:
+                                    self.send_res_exc = '%s | %s | %s | %s' % (str(fe_msg), rate_cmc_str, ircProtocolDisplayText_exmo, kuna_str) #, gnomeHodlDeltaStr
+                                else:
+                                    self.send_res_exc = f'{rate_cmc_str} | {kuna_str}' #, gnomeHodlDeltaStr
+                                print("self.send_res_exc:", self.send_res_exc, flush=True)
+                                print("where_mes_exc:", where_mes_exc, flush=True)
+                                self.send('PRIVMSG %s :\x033%s\r\n'%(where_mes_exc,self.send_res_exc))
+                                print(__name__, "point 6.1", flush=True)
+                            except (ConnectionError, Timeout, TooManyRedirects) as e:
+                                print(__name__, "point 6.1.ex", flush=True)
+                                print(__name__, e, flush=True)
+                            except KeyError as e:
+                                print(__name__, e, flush=True)
+                                self.send_res_exc = 'error in response json: %s' % str(e)
+                                print(__name__, "self.send_res_exc:", self.send_res_exc, flush=True)
+                                print(__name__, "where_mes_exc:", where_mes_exc, flush=True)
+                                self.send('PRIVMSG %s :%s\r\n'%(where_mes_exc,self.send_res_exc))
+                                print(__name__, "send exited", flush=True)
+                        print(__name__, "point 5.0", flush=True)
+                      except:
+                        print(__name__, "point 5.1", flush=True)
+                        tb.print_exc()
+                        import sys
+                        sys.stderr.flush()
+                        raise()
+
 
             except KeyboardInterrupt as e:
                 raise e
             except:
-                import traceback as tb 
                 tb.print_exc()
                 import sys
                 sys.stderr.flush()
-                print("self.irc_socket.close(), iterate",flush=True);
+                print("self.irc_socket.close(), iterate", flush=True);
                 try:
                     self.irc_socket.close()
                 except KeyboardInterrupt as e:
@@ -1364,6 +1511,8 @@ class MyBot:
                 except:
                     import traceback as tb 
                     tb.print_exc()
+                    import sys
+                    sys.stderr.flush()
                 continue
 
 

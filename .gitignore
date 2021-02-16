@@ -109,3 +109,5 @@ nohup.out
 
 *.sublime-*
 *~
+
+quotes.json
