@@ -17,7 +17,7 @@ from settings import settings as option
 from threading import Thread
 import traceback, datetime
 
-LOG_TRACE = False
+LOG_TRACE = True
 
 ENABLE_EXMO = False
 
@@ -708,7 +708,7 @@ class MyBot:
         return self.databuf
 
     def extract_line_1(self):
-        if LOG_TRACE: print("extract_line_1() #0: databuf", databuf, "socket_closed", socket_closed)
+        #if LOG_TRACE: print("extract_line_1() #0: databuf", databuf, "socket_closed", socket_closed)
         a = self.databuf.find(b'\r')
         b = self.databuf.find(b'\n')
         if a != -1 and b != -1: a = min(a, b)
@@ -1284,7 +1284,7 @@ class MyBot:
                                 
                                 url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
                                 parameters = {
-                                  'symbol':'BTC,ETH,DASH',
+                                  'symbol':'BTC,ETH,DASH,DOGE',
                                   'convert':'USD'
                                 }
                                 headers = {
@@ -1305,11 +1305,34 @@ class MyBot:
                                   btc_usd = cmc["data"]["BTC"]["quote"]["USD"]["price"]
                                   eth_usd = cmc["data"]["ETH"]["quote"]["USD"]["price"]
                                   dash_usd = cmc["data"]["DASH"]["quote"]["USD"]["price"]
+                                  doge_usd = cmc["data"]["DOGE"]["quote"]["USD"]["price"]
                                   btc_usd_str = str(format_currency(btc_usd))
                                   eth_usd_str = str(format_currency(eth_usd))
                                   dash_usd_str = str(format_currency(dash_usd))
+                                  doge_usd_str = str(format_currency(doge_usd))
                                   
-                                  rate_cmc_str += '\x02BTC/USD:\x02 '+btc_usd_str+' \x02ETH/USD:\x02 '+eth_usd_str+' \x02DASH/USD:\x02 '+dash_usd_str
+                                  rate_cmc_str += f'\x02BTC/USD:\x02 {btc_usd_str} \x02ETH/USD:\x02 {eth_usd_str} \x02DASH/USD:\x02 {dash_usd_str}' # \x02DOGE/USD:\x02 {doge_usd_str}
+
+                                except (ConnectionError, Timeout, TooManyRedirects) as e:
+                                  tb.print_exc()
+                                  rate_cmc_str += str(e)
+
+                                RUR_SYMBOL="RUB"
+
+                                parameters = {
+                                  'symbol':'DOGE',
+                                  'convert':RUR_SYMBOL
+                                }
+
+                                try:
+                                  print('!курс rur session.get url='+url)
+                                  response = session.get(url, params=parameters)
+                                  cmc = json.loads(response.text)
+                                  if LOG_TRACE: print("cmc_rur:", cmc)
+                                  doge_rur = cmc["data"]["DOGE"]["quote"][RUR_SYMBOL]["price"]
+                                  doge_rur_str = str(format_currency(doge_rur))
+                                  
+                                  rate_cmc_str += f' \x02DOGE/RUR:\x02 {doge_rur_str}'
 
                                 except (ConnectionError, Timeout, TooManyRedirects) as e:
                                   tb.print_exc()
@@ -1376,9 +1399,55 @@ class MyBot:
                                   print(__name__, e, flush=True)
                                   kuna_str = 'Kuna.io error: '+str(e)
 
-
                                 btcToUsdFloat = None
                                 btcToRurFloat = None
+
+                                try:
+                                  import urllib.request
+                                  url = "https://api.freiexchange.com/public/ticker/GST"
+                                  print("querying %s"%(url,), flush=True)
+                                  req = urllib.request.Request(
+                                        url, 
+                                        data=None, 
+                                        headers={
+                                            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
+                                        }
+                                  )
+                                  fe_ticker = urllib.request.urlopen(req).read()
+                                  # urllib.request.urlopen(url).read()
+                                  print("fe_ticker (a response):",fe_ticker,flush=True)
+                                  fe_ticker = json.loads(fe_ticker)
+                                  if "GST_BTC" in fe_ticker:
+                                    gst_resp = fe_ticker["GST_BTC"][0]
+                                    volume24h_gst = float(gst_resp["volume24h"])
+                                    volume24h_btc_lit = gst_resp["volume24h_btc"]
+                                    volume24h_btc = float(volume24h_btc_lit)
+                                    volume24h_rur = btcToRurFloat*volume24h_btc if btcToRurFloat is not None else None
+                                    last_lit = gst_resp["last"]
+                                    last = float(last_lit)
+                                    last_rur = btcToRurFloat*last if btcToRurFloat is not None else None
+                                    highestBuy_lit = gst_resp["highestBuy"]
+                                    highestBuy = float(highestBuy_lit)
+                                    highestBuy_rur = btcToRurFloat*highestBuy if btcToRurFloat is not None else None
+                                    lowestSell_lit = gst_resp["lowestSell"]
+                                    lowestSell = float(lowestSell_lit)
+                                    lowestSell_rur = btcToRurFloat*lowestSell if btcToRurFloat is not None else None
+
+                                    #fe_msg = "FreiEx(GST): VOL24:"+fmt2(volume24h_rur)+"RUR LAST:"+fmt2(last_rur)+"RUR S:"+fmt2(lowestSell_rur)+"RUR B:"+fmt2(highestBuy_rur)+"RUR"
+                                    fe_msg = f"FreiEx(GST_BTC): VOL24:{volume24h_btc_lit}BTC LAST:{last_lit} S:{lowestSell_lit} B:{highestBuy_lit}"
+                                  else:
+                                    fe_msg = "Error in FreiEx(GST) response"
+                                except KeyboardInterrupt as ex:
+                                    print("ex:",str(ex),flush=True)
+                                    raise e
+                                except BaseException as ex:
+                                    print("ex:",str(ex),flush=True)
+                                    tb.print_exc()
+                                    import sys
+                                    sys.stdout.flush()
+                                    sys.stderr.flush()
+                                print("after freiexchange poll", flush=True)
+
                                 #exmo and frei
                                 if ENABLE_EXMO:
                                  try:
@@ -1398,46 +1467,6 @@ class MyBot:
                                   btcToUsdFloat = float(exmo_BTC_USD_sell_price) if not 'error' in exmo_ticker else None
                                   btcToRurFloat = float(exmo_ticker["BTC_RUB"]["buy_price"]) if not 'error' in exmo_ticker else None
 
-                                  try:
-                                      import urllib.request
-                                      url = "https://api.freiexchange.com/public/ticker/GST"
-                                      print("querying %s"%(url,), flush=True)
-                                      req = urllib.request.Request(
-                                            url, 
-                                            data=None, 
-                                            headers={
-                                                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
-                                            }
-                                      )
-                                      fe_ticker = urllib.request.urlopen(req).read()
-                                      # urllib.request.urlopen(url).read()
-                                      print("resp:",fe_ticker,flush=True)
-                                      fe_ticker = json.loads(fe_ticker)
-                                      if "GST_BTC" in fe_ticker:
-                                        gst_resp = fe_ticker["GST_BTC"][0]
-                                        volume24h_gst = float(gst_resp["volume24h"])
-                                        volume24h_btc = float(gst_resp["volume24h_btc"])
-                                        volume24h_rur = btcToRurFloat*volume24h_btc if btcToRurFloat is not None else None
-                                        last = float(gst_resp["last"])
-                                        last_rur = btcToRurFloat*last if btcToRurFloat is not None else None
-                                        highestBuy = float(gst_resp["highestBuy"])
-                                        highestBuy_rur = btcToRurFloat*highestBuy if btcToRurFloat is not None else None
-                                        lowestSell = float(gst_resp["lowestSell"])
-                                        lowestSell_rur = btcToRurFloat*lowestSell if btcToRurFloat is not None else None
-
-                                        fe_msg = "FreiEx(GST): VOL24:"+fmt2(volume24h_rur)+"RUR LAST:"+fmt2(last_rur)+"RUR S:"+fmt2(lowestSell_rur)+"RUR B:"+fmt2(highestBuy_rur)+"RUR"
-                                      else:
-                                        fe_msg = "Error in FreiEx(GST) response"
-                                  except KeyboardInterrupt as ex:
-                                    print("ex:",str(ex),flush=True)
-                                    raise e
-                                  except BaseException as ex:
-                                    print("ex:",str(ex),flush=True)
-                                    tb.print_exc()
-                                    import sys
-                                    sys.stdout.flush()
-                                    sys.stderr.flush()
-                                  print("after freiexchange poll", flush=True)
                                   if 'error' in exmo_ticker:
                                     ircProtocolDisplayText_exmo="Exmo API returned error: '%s'" % str(exmo_ticker['error'])
                                   else:
@@ -1473,7 +1502,7 @@ class MyBot:
                                 if ENABLE_EXMO:
                                     self.send_res_exc = '%s | %s | %s | %s' % (str(fe_msg), rate_cmc_str, ircProtocolDisplayText_exmo, kuna_str) #, gnomeHodlDeltaStr
                                 else:
-                                    self.send_res_exc = f'{rate_cmc_str} | {kuna_str}' #, gnomeHodlDeltaStr
+                                    self.send_res_exc = f'{fe_msg} | {rate_cmc_str} | {kuna_str}' #, gnomeHodlDeltaStr
                                 print("self.send_res_exc:", self.send_res_exc, flush=True)
                                 print("where_mes_exc:", where_mes_exc, flush=True)
                                 self.send('PRIVMSG %s :\x033%s\r\n'%(where_mes_exc,self.send_res_exc))
@@ -1500,6 +1529,7 @@ class MyBot:
             except KeyboardInterrupt as e:
                 raise e
             except:
+                import traceback as tb
                 tb.print_exc()
                 import sys
                 sys.stderr.flush()
@@ -1509,7 +1539,7 @@ class MyBot:
                 except KeyboardInterrupt as e:
                     raise e
                 except:
-                    import traceback as tb 
+                    import traceback as tb
                     tb.print_exc()
                     import sys
                     sys.stderr.flush()
