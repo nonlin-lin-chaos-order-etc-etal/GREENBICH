@@ -1017,7 +1017,7 @@ class MyBot:
                         try:
                             where_message = communicationsLineName
                             if message is not None and (("!k" in message) or ("!к" in message)) and dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
-                                if self.grantCommand(sentBy):
+                                if self.grantCommand(sentBy, communicationsLineName):
                                     print(__name__, "krako test success",flush=True)
                                     if (message == "!k") or (message == "!к"):
                                         print(__name__, "krako: mask2ctx='"+str(mask2ctx)+"', sender_mask='"+str(sender_mask)+"'",flush=True)
@@ -1062,7 +1062,7 @@ class MyBot:
                     #print(__name__, "point 3.1", flush=True)
                     if self.enableother1 or self.connection_setting_or_None("enable_hextoip"):
                         if ':!hextoip' in lineJoined and dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
-                            if self.grantCommand(sentBy):
+                            if self.grantCommand(sentBy, communicationsLineName):
                                 print(__file__, "hextoip test success")
                                 try:
                                     hex_value = message.split('!hextoip ',1)[1].strip()
@@ -1144,13 +1144,13 @@ class MyBot:
                         self.send(mes_per_bot)
                     """
                     #---------Whois service--------------------------
-                    print(__name__, "point 2.3", flush=True)
+                    #print(__name__, "point 2.3", flush=True)
 
                     if self.enableother1:
                       if 'PRIVMSG '+channel+' :!где айпи' in data\
                        or 'PRIVMSG '+self.botName+' :!где айпи' in data:
 
-                        if self.grantCommand(sentBy):
+                        if self.grantCommand(sentBy, communicationsLineName):
                             if 'PRIVMSG '+channel+' :!где айпи' in data:
                                 where_message_whois = channel
                                 
@@ -1187,7 +1187,7 @@ class MyBot:
                         if 'PRIVMSG %s :'%(channel) in data and '.png' not in data and '.jpg' not in data and '.doc'\
                         not in data and 'tiff' not in data and 'gif' not in data and '.jpeg' not in data and '.pdf' not in data:
                             if 'http://' in data or 'https://' in data or 'www.' in data:
-                                if self.grantCommand(sentBy):
+                                if self.grantCommand(sentBy, communicationsLineName):
                                     try:
                                        self.send('PRIVMSG %s :%s\r\n'%(channel,link_title(data)))
                                     except requests.exceptions.ConnectionError:
@@ -1205,7 +1205,7 @@ class MyBot:
                         print('счетчик опроса сброшен хозяином!')
                     if self.enableother1:
                       if 'PRIVMSG '+channel+' :!опрос ' in data and ip_user not in list_bot_not_work:
-                        if self.grantCommand(sentBy):
+                        if self.grantCommand(sentBy, communicationsLineName):
                             if t2 == 0 or t > t2+time_vote:
                                 if ' сек ' not in data:
                                     time_vote = 60
@@ -1324,7 +1324,7 @@ class MyBot:
                       #print(__name__, f"point 4.3, line: '{line}', commWithBot: '{commWithBot}'", flush=True)
                       try:
                         if 'курс' in line and commWithBot:
-                            if self.grantCommand(sentBy):
+                            if self.grantCommand(sentBy, communicationsLineName):
                                 print(__name__, 'курс', flush=True)
                                 is_dialogue_with_master = False
                                 if where_mes_exc == self.botName: #/query
