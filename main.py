@@ -3,7 +3,7 @@ import traceback as tb
 import traceback
 import socket
 import pytz
-import socks
+# import socks
 import sys
 import time
 import requests
@@ -810,7 +810,7 @@ class MyBot:
 
     # Function shortening of ic.self.send.  
     def send(self, msg):
-      print("self.send:"+msg)
+      print(f"TX: {msg}")
       retval = self.irc_socket.send(bytes(msg,'utf-8'))
       return retval
 
@@ -847,12 +847,16 @@ class MyBot:
                 from time import sleep as sleep_seconds
                 print("sleeping 50ms...")
                 sleep_seconds(0.05)
-                print("new socket(AF_INET,SOCK_STREAM)")
-                self.irc_socket = socks.socksocket()#socket.socket (socket.AF_INET, socket.SOCK_STREAM)
                 if self.connection_setting_or_None('socks5_host'):
-                    self.irc_socket.set_proxy(socks.SOCKS5, self.connection_option('socks5_host'), \
+                    host = self.connection_option('socks5_host')
+                    print (f"new socks.socksocket({host})")
+                    self.irc_socket = socks.socksocket()
+                    self.irc_socket.set_proxy(socks.SOCKS5, host, \
                         self.connection_option('socks5_port'), True, self.connection_option('socks5_username'), \
                         self.connection_option('socks5_password'))
+                else:
+                    print ("new socket(AF_INET,SOCK_STREAM)")
+                    self.irc_socket = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
                 print("connecting... irc_server_hostname='"+self.irc_server_hostname+"' port='"+str(self.port)+"'…")
                 self.irc_socket.connect ((self.irc_server_hostname, self.port))
                 self.init_socket(self.irc_socket)
@@ -914,12 +918,12 @@ class MyBot:
                         data = self.get_line(self.irc_socket).decode("UTF-8")
                         print("got line:["+data+"]", flush=True)
                         if data=="":
-                            print("data=='', self.irc_socket.close(), keepingConnection=False, iterate");
+                            print("data=='', self.irc_socket.close(), keepingConnection=False, iterating...");
                             self.irc_socket.close()
                             keepingConnection=False
                             continue
                     except UnicodeDecodeError as decodeException:
-                        print("UnicodeDecodeError ", decodeException)
+                        print(f"UnicodeDecodeError {decodeException}, iterating...")
                         continue
                     tokens1 = data.split(" ");
 
@@ -951,7 +955,14 @@ class MyBot:
                     if self.nickserv_password is not None and len(tokens1)>1 and tokens1[1]=="001": #001 nick :Welcome to the Internet Relay Network
                         self.send('NICKSERV IDENTIFY '+self.nickserv_password+'\r\n')
                     if data.find('PING') != -1:
-                        self.send('PONG '+data.split(" ")[1]+'\r\n')
+                        try:
+                          print("ping_received")
+                          self.send('PONG '+data.split(" ")[1]+'\r\n')
+                          print("pong sent with data_str")
+                        except:
+                          traceback.print_exc()
+                          self.send('PONG')
+                          print("pong sent without data_str")
                         continue
                     if data.find('PONG') != -1:
                         print("server pong_received")
