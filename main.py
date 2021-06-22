@@ -1356,7 +1356,7 @@ class MyBot:
                                     
                                     url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
                                     parameters = {
-                                      'symbol':'BTC,ETH,DASH,DOGE',
+                                      'symbol':'BTC,ETH,DASH,DOGE,ZEC',
                                       'convert':'USD'
                                     }
                                     headers = {
@@ -1378,12 +1378,14 @@ class MyBot:
                                       eth_usd = cmc["data"]["ETH"]["quote"]["USD"]["price"]
                                       dash_usd = cmc["data"]["DASH"]["quote"]["USD"]["price"]
                                       doge_usd = cmc["data"]["DOGE"]["quote"]["USD"]["price"]
+                                      zec_usd = cmc["data"]["ZEC"]["quote"]["USD"]["price"]
                                       btc_usd_str = str(format_currency(btc_usd))
                                       eth_usd_str = str(format_currency(eth_usd))
                                       dash_usd_str = str(format_currency(dash_usd))
                                       doge_usd_str = str(format_currency(doge_usd))
+                                      zec_usd_str = str(format_currency(zec_usd))
                                       
-                                      rate_cmc_str += f'\x02BTC/USD:\x02 {btc_usd_str} \x02ETH/USD:\x02 {eth_usd_str} \x02DASH/USD:\x02 {dash_usd_str}' # \x02DOGE/USD:\x02 {doge_usd_str}
+                                      rate_cmc_str += f'\x02BTC/USD:\x02 {btc_usd_str} \x02ETH/USD:\x02 {eth_usd_str} \x02DASH/USD:\x02 {dash_usd_str} \x02ZEC/USD:\x02 {zec_usd_str}' # \x02DOGE/USD:\x02 {doge_usd_str}
 
                                     except (ConnectionError, Timeout, TooManyRedirects) as e:
                                       tb.print_exc()
