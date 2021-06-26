@@ -1,5 +1,10 @@
-# IrcBot
-An irc bot. Speaks in Russian. Initially written by inexperienced programmer.
+# Зелёный Суперэкуменический Архангел Михаил бот.
+
+## Официальный Сайт
+
+💚 ⊙ https://BiocentricClouds.Dev/ 🐸🌈🧚🐁+∞¤💎💚vv∞8👾☯🌌💚💞🧙💚
+
+## Заметки по инсталляции клона бота
 
 Put the following into `local.json`:
 ```
