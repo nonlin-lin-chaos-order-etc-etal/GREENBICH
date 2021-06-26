@@ -1,6 +1,10 @@
-# Green bot
+# 💚👾💚 Green Ecology bot 💚👾💚
 
 Ecology is disjointly more important than religions and all the other things and domains.
+
+## Temporary Official Site
+
+💚 ⊙ https://BiocentricClouds.Dev/ 🐸🌈🧚🐁+∞¤💎💚vv∞8👾☯🌌💚💞🧙💚
 
 --------*
 
@@ -9,10 +13,6 @@ Ecology is disjointly more important than religions and all the other things and
 Думаю, что религия это комфорт, доброта, прогресс. А вот экология в рамках настоящего и бесконечного* будущего кардинально принципиально важнее, нежели комфорт и уют.
 
 И дизджойнтно важнее. Ecology is disjointly more important than religion and all the other things and domains.
-
-## Официальный Сайт
-
-💚 ⊙ https://BiocentricClouds.Dev/ 🐸🌈🧚🐁+∞¤💎💚vv∞8👾☯🌌💚💞🧙💚
 
 ## Заметки по инсталляции клона бота
 
