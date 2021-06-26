@@ -22,6 +22,14 @@
 <LinkShow1> Title: User Modes - UnrealIRCd documentation wiki
 
 крч команда райлист
+
+
+<eccentric_Turiyya> <owo> можно блядь весь интернет перебанить, а можно флаг добавить
+<eccentric_Turiyya> <owo> норм?
+<eccentric_Turiyya> не норм
+<eccentric_Turiyya> гавно
+<eccentric_Turiyya> рай заслужить нада
+<eccentric_Turiyya> так просто к богу не приходят
 ```
 
  * https://github.com/nonlin-lin-chaos-order-etc-etal/IrcBot/issues
