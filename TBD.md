@@ -31,4 +31,4 @@
  * (GreenBich) Quote added: [1162] <GreenBich> Flood detected, ignoring. --- TBD handle floods and stikhias humanistically.
  * команда `отшвабрить` исключает из райлиста 
  * команда `в рай` добавляе в райлист
- * и потом сделаю естественный язык с пониманием
+ * и потом сделаю естественный язык с пониманием, отчасти на базе rasa
