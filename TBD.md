@@ -30,6 +30,8 @@
 <eccentric_Turiyya> гавно
 <eccentric_Turiyya> рай заслужить нада
 <eccentric_Turiyya> так просто к богу не приходят
+
+<eccentric_Turiyya> нада помолиться и мож он соизволит
 ```
 
  * https://github.com/nonlin-lin-chaos-order-etc-etal/IrcBot/issues
