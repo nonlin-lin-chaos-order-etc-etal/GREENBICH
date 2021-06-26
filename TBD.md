@@ -51,6 +51,10 @@
 
 <baz> eccentric_Turiyya, но святые не заставляли так жить других
 <eccentric_Turiyya> baz, неть не заставляли угу.
+<baz> eccentric_Turiyya, а плаз продвигает идею что основное назначение любой программы это эффективное противодействие плазу
+<baz> eccentric_Turiyya, всё остальное вторично и несущественно
+<eccentric_Turiyya> baz, ну если он сатанизмом решил позаниматься то вот и имеем что имеем.
+<eccentric_Turiyya> переименовать гринбича в ЗелёныйАрхангелМихаил
 ```
 
  * https://github.com/nonlin-lin-chaos-order-etc-etal/IrcBot/issues
