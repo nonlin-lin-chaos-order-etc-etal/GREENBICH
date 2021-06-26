@@ -47,6 +47,9 @@
 <eccentric_Turiyya> baz, должны в землянках. это называется христианами "во гробе". святые так жили.
 
 команда `произвести ошвабрение`
+
+<baz> eccentric_Turiyya, но святые не заставляли так жить других
+<eccentric_Turiyya> baz, неть не заставляли угу.
 ```
 
  * https://github.com/nonlin-lin-chaos-order-etc-etal/IrcBot/issues
