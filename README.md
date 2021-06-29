@@ -1,5 +1,20 @@
-# IrcBot
-An irc bot. Speaks in Russian. Initially written by inexperienced programmer.
+# 💚👾💚 Green Ecology bot 💚👾💚
+
+Ecology is disjointly more important than religions and all the other things and domains.
+
+## Temporary Official Site
+
+💚 ⊙ https://BiocentricClouds.Dev/ 🐸🌈🧚🐁+∞¤💎💚vv∞8👾☯🌌💚💞🧙💚
+
+--------*
+
+Россия или экология? Русские и россияне сами о себе позаботятся, а экология существенно важнее. И всё, кроме религии, существенно менее важно. И религия тоже в целом менее важна, чем экология.
+
+Думаю, что религия это комфорт, доброта, прогресс. А вот экология в рамках настоящего и бесконечного* будущего кардинально принципиально важнее, нежели комфорт и уют.
+
+И дизджойнтно важнее. Ecology is disjointly more important than religion and all the other things and domains.
+
+## Заметки по инсталляции клона бота
 
 Put the following into `local.json`:
 ```
