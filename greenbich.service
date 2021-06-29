@@ -136,4 +136,20 @@ WantedBy=multi-user.target
 # Jun 29 21:56:26 home1fedora34 bash[44417]: ./run.sh: строка 3: 44418 GPF         (memory dump dropped to disc) ./venv3_2/bin/python launch_all.py
 # Jun 29 21:56:26 home1fedora34 systemd[1]: greenbich.service: Main process exited, code=exited, status=134/n/a
 # Jun 29 21:56:26 home1fedora34 systemd[1]: greenbich.service: Failed with result 'exit-code'.
-
+#
+# ...
+#
+# systemctl start greenbich && systemctl status greenbich
+# ● greenbich.service - greenbich irc bot service
+#     Loaded: loaded (/etc/systemd/system/greenbich.service; enabled; vendor preset: disabled)
+#     Active: active (running) since Tue 2021-06-29 22:07:04 +08; 8ms ago
+#   Main PID: 45136 (bash)
+#      Tasks: 2 (limit: 19073)
+#     Memory: 1.4M
+#        CPU: 7ms
+#     CGroup: /system.slice/greenbich.service
+#             ├─45136 bash /home/user/vcs/ircbot_greenbich/bin/run.sh
+#             └─45138 ./venv3_2/bin/python launch_all.py
+# root@home1fedora34/root/ +2021-06-29 14:07:04 UTC nanoseconds:663087318
+# Ok
+#
