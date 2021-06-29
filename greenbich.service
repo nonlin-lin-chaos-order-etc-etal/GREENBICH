@@ -4,7 +4,136 @@
 Description=greenbich irc bot service
 
 [Service]
-ExecStart=/home/user/git/ircbot_greenbich/bin/run.sh
+ExecStart=/usr/bin/bash -c /home/user/vcs/ircbot_greenbich/bin/run.sh
 
 [Install]
 WantedBy=multi-user.target
+
+# Fedora 34
+
+# Creating new systemd services
+
+# This example shows how to create a unit file for a custom service. 
+# Custom unit files are located in /etc/systemd/system/ and 
+# have a .service extension. For example, a custom foo service 
+# uses /etc/systemd/system/foo.service unit file.
+# 
+# sudo ln -sv ~/vcs/greenbich-runtime/greenbich.service /etc/systemd/system/
+# ls -al ~/vcs/greenbich-runtime/greenbich.service /etc/systemd/system/|grep greenbich
+# -rw-rw-r--. 1 user user  570 2021-06-29 21:36:54 +08 nanoseconds:259003973 /root/vcs/greenbich-runtime/greenbich.service
+# lrwxrwxrwx. 1 root root   45 2021-06-29 21:37:00 +08 nanoseconds:892976823 greenbich.service -> /root/vcs/greenbich-runtime/greenbich.service
+# chown -v root.root ~/vcs/greenbich-runtime/greenbich.service
+# changed owner '/root/vcs/greenbich-runtime/greenbich.service' from user:user to root:root
+# export LANG=en_us.UTF-8
+# rm -v /etc/systemd/system/greenbich.service
+# removed '/etc/systemd/system/greenbich.service'
+# cp -v ~/vcs/greenbich-runtime/greenbich.service /etc/systemd/system/greenbich.service
+# '/root/vcs/greenbich-runtime/greenbich.service' -> '/etc/systemd/system/greenbich.service'
+# chown -v user.user ~user/vcs/greenbich-runtime/greenbich.service
+# changed ownership of '/home/user/vcs/greenbich-runtime/greenbich.service' from root:root to user:user
+# systemctl daemon-reload
+# systemctl start greenbich
+# systemctl status greenbich
+# × greenbich.service - greenbich irc bot service
+#     Loaded: loaded (/etc/systemd/system/greenbich.service; disabled; vendor preset: disabled)
+#     Active: failed (Result: exit-code) since Tue 2021-06-29 21:44:39 +08; 7s ago
+#    Process: 43735 ExecStart=/home/user/vcs/ircbot_greenbich/bin/run.sh (code=exited, status=203/EXEC)
+#   Main PID: 43735 (code=exited, status=203/EXEC)
+#        CPU: 1ms
+#
+# Jun 29 21:44:39 home1fedora34 systemd[1]: Started greenbich irc bot service.
+# Jun 29 21:44:39 home1fedora34 systemd[1]: greenbich.service: Main process exited, code=exited, status=203/EXEC
+# Jun 29 21:44:39 home1fedora34 systemd[1]: greenbich.service: Failed with result 'exit-code'.
+#
+# rm -v /etc/systemd/system/greenbich.service
+#removed '/etc/systemd/system/greenbich.service'
+# cp -v ~/vcs/greenbich-runtime/greenbich.service /etc/systemd/system/greenbich.service
+# '/root/vcs/greenbich-runtime/greenbich.service' -> '/etc/systemd/system/greenbich.service'
+# chown -v user.user ~user/vcs/greenbich-runtime/greenbich.service
+# changed ownership of '/home/user/vcs/greenbich-runtime/greenbich.service' from root:root to user:user
+# systemctl daemon-reload
+# systemctl start greenbich
+# systemctl status greenbich
+#× greenbich.service - greenbich irc bot service
+#     Loaded: loaded (/etc/systemd/system/greenbich.service; disabled; vendor preset: disabled)
+#     Active: failed (Result: exit-code) since Tue 2021-06-29 21:44:39 +08; 7s ago
+#    Process: 43735 ExecStart=/home/user/vcs/ircbot_greenbich/bin/run.sh (code=exited, status=203/EXEC)
+#   Main PID: 43735 (code=exited, status=203/EXEC)
+#        CPU: 1ms
+#
+#Jun 29 21:44:39 home1fedora34 systemd[1]: Started greenbich irc bot service.
+#Jun 29 21:44:39 home1fedora34 systemd[1]: greenbich.service: Main process exited, code=exited, status=203/EXEC
+#Jun 29 21:44:39 home1fedora34 systemd[1]: greenbich.service: Failed with result 'exit-code'.
+#cp -v ~/vcs/greenbich-runtime/greenbich.service /etc/systemd/system/greenbich.service
+#'/root/vcs/greenbich-runtime/greenbich.service' -> '/etc/systemd/system/greenbich.service'
+#systemctl daemon-reload
+#systemctl start greenbich
+#systemctl status greenbich
+#× greenbich.service - greenbich irc bot service
+#     Loaded: loaded (/etc/systemd/system/greenbich.service; disabled; vendor preset: disabled)
+#     Active: failed (Result: exit-code) since Tue 2021-06-29 21:47:05 +08; 3s ago
+#    Process: 43978 ExecStart=/home/user/vcs/ircbot_greenbich/bin/run.sh (code=exited, status=203/EXEC)
+#   Main PID: 43978 (code=exited, status=203/EXEC)
+#        CPU: 1ms
+#
+#Jun 29 21:47:05 home1fedora34 systemd[1]: Started greenbich irc bot service.
+#Jun 29 21:47:05 home1fedora34 systemd[43978]: greenbich.service: Failed to locate executable /home/user/vcs/ircbot_greenbich/bin/run.sh: Permission denied
+#Jun 29 21:47:05 home1fedora34 systemd[43978]: greenbich.service: Failed at step EXEC spawning /home/user/vcs/ircbot_greenbich/bin/run.sh: Permission denied
+#Jun 29 21:47:05 home1fedora34 systemd[1]: greenbich.service: Main process exited, code=exited, status=203/EXEC
+#Jun 29 21:47:05 home1fedora34 systemd[1]: greenbich.service: Failed with result 'exit-code'.
+#ls -al /home/user/vcs/ircbot_greenbich/bin/run.sh
+#-rwxrwxr-x. 1 user user 69 2021-01-03 16:44:10 +08 nanoseconds:121339166 /home/user/vcs/ircbot_greenbich/bin/run.sh
+#less /home/user/vcs/ircbot_greenbich/bin/run.sh
+#cat /home/user/vcs/ircbot_greenbich/bin/run.sh
+# #!/usr/bin/env bash
+#
+# cd /home/user/git/ircbot_greenbich
+#
+# . ./run.sh
+# systemctl enable greenbich
+# Created symlink /etc/systemd/system/multi-user.target.wants/greenbich.service → /etc/systemd/system/greenbich.service.
+# systemctl daemon-reload
+# systemctl start greenbich
+# systemctl status greenbich
+# × greenbich.service - greenbich irc bot service
+#     Loaded: loaded (/etc/systemd/system/greenbich.service; enabled; vendor preset: disabled)
+#     Active: failed (Result: exit-code) since Tue 2021-06-29 21:48:32 +08; 3s ago
+#    Process: 44103 ExecStart=/home/user/vcs/ircbot_greenbich/bin/run.sh (code=exited, status=203/EXEC)
+#   Main PID: 44103 (code=exited, status=203/EXEC)
+#        CPU: 987us
+#
+# Jun 29 21:48:32 home1fedora34 systemd[1]: Started greenbich irc bot service.
+# Jun 29 21:48:32 home1fedora34 systemd[1]: greenbich.service: Main process exited, code=exited, status=203/EXEC
+# Jun 29 21:48:32 home1fedora34 systemd[1]: greenbich.service: Failed with result 'exit-code'.
+# ls -al /home/user/vcs/ircbot_greenbich/bin/run.sh
+# -rwxrwxr-x. 1 user user 69 2021-01-03 16:44:10 +08 nanoseconds:121339166 /home/user/vcs/ircbot_greenbich/bin/run.sh
+# cat /home/user/vcs/ircbot_greenbich/bin/run.sh|head -1
+# #!/usr/bin/env bash
+# which bash
+# /usr/bin/bash
+# cp -v ~/vcs/greenbich-runtime/greenbich.service /etc/systemd/system/greenbich.service
+# '/root/vcs/greenbich-runtime/greenbich.service' -> '/etc/systemd/system/greenbich.service'
+# systemctl disable greenbich
+# Removed /etc/systemd/system/multi-user.target.wants/greenbich.service.
+# systemctl enable greenbich
+# Created symlink /etc/systemd/system/multi-user.target.wants/greenbich.service → /etc/systemd/system/greenbich.service.
+# systemctl start greenbich
+# systemctl status greenbich
+# × greenbich.service - greenbich irc bot service
+     Loaded: loaded (/etc/systemd/system/greenbich.service; enabled; vendor preset: disabled)
+     Active: failed (Result: exit-code) since Tue 2021-06-29 21:56:26 +08; 4s ago
+    Process: 44417 ExecStart=/usr/bin/bash -c /home/user/vcs/ircbot_greenbich/bin/run.sh (code=exited, status=134)
+   Main PID: 44417 (code=exited, status=134)
+        CPU: 20ms
+
+# Jun 29 21:56:25 home1fedora34 systemd[1]: Started greenbich irc bot service.
+# Jun 29 21:56:25 home1fedora34 bash[44418]: Could not find platform independent libraries <prefix>
+# Jun 29 21:56:25 home1fedora34 bash[44418]: Could not find platform dependent libraries <exec_prefix>
+# Jun 29 21:56:25 home1fedora34 bash[44418]: Consider setting $PYTHONHOME to <prefix>[:<exec_prefix>]
+# Jun 29 21:56:25 home1fedora34 bash[44418]: Fatal Python error: Py_Initialize: Unable to get the locale encoding
+# Jun 29 21:56:25 home1fedora34 bash[44418]: ModuleNotFoundError: No module named 'encodings'
+# Jun 29 21:56:25 home1fedora34 bash[44418]: Current thread 0x00007f011e3fc740 (most recent call first):
+# Jun 29 21:56:26 home1fedora34 bash[44417]: ./run.sh: строка 3: 44418 GPF         (memory dump dropped to disc) ./venv3_2/bin/python launch_all.py
+# Jun 29 21:56:26 home1fedora34 systemd[1]: greenbich.service: Main process exited, code=exited, status=134/n/a
+# Jun 29 21:56:26 home1fedora34 systemd[1]: greenbich.service: Failed with result 'exit-code'.
+
