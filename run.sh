@@ -7,7 +7,8 @@ whoami
 
 . pythonvars.sh
 
-export CL="strace ./venv3_2/bin/python ./launch_all.py"
+# export CL="strace ./venv/bin/python ./launch_all.py"
+export CL="./venv/bin/python ./launch_all.py"
 echo "launching $CL"
 $CL
 
