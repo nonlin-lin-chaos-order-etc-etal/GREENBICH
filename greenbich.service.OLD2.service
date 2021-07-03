@@ -120,12 +120,12 @@ WantedBy=multi-user.target
 # systemctl start greenbich
 # systemctl status greenbich
 # × greenbich.service - greenbich irc bot service
-#     Loaded: loaded (/etc/systemd/system/greenbich.service; enabled; vendor preset: disabled)
-#     Active: failed (Result: exit-code) since Tue 2021-06-29 21:56:26 +08; 4s ago
-#    Process: 44417 ExecStart=/usr/bin/bash -c /home/user/vcs/ircbot_greenbich/bin/run.sh (code=exited, status=134)
-#   Main PID: 44417 (code=exited, status=134)
-#        CPU: 20ms
-#
+     Loaded: loaded (/etc/systemd/system/greenbich.service; enabled; vendor preset: disabled)
+     Active: failed (Result: exit-code) since Tue 2021-06-29 21:56:26 +08; 4s ago
+    Process: 44417 ExecStart=/usr/bin/bash -c /home/user/vcs/ircbot_greenbich/bin/run.sh (code=exited, status=134)
+   Main PID: 44417 (code=exited, status=134)
+        CPU: 20ms
+
 # Jun 29 21:56:25 home1fedora34 systemd[1]: Started greenbich irc bot service.
 # Jun 29 21:56:25 home1fedora34 bash[44418]: Could not find platform independent libraries <prefix>
 # Jun 29 21:56:25 home1fedora34 bash[44418]: Could not find platform dependent libraries <exec_prefix>

@@ -18,6 +18,7 @@ lazr.uri==1.0.3
 libvirt-python
 # libxml2-python3>=2.9.5
 lxml
+lxml==4.6.3
 Mako==1.0.7
 MarkupSafe==1.1.1
 nbxmpp==0.6.4
@@ -25,27 +26,31 @@ netifaces==0.10.4
 numpy
 oauth==1.0.1
 olefile==0.45.1
-pandas>=1.2.5
+pandas>=1.1.5
 pbr==5.4.4
 pexpect==4.2.1
 Pillow
+Pillow==8.3.0
 precis-i18n==1.0.0
 protobuf==3.0.0
 protonvpn-cli==2.2.2
 psutil==5.4.2
 ptyprocess==0.6.0
 pyasn1==0.4.2
-pycairo>=1.16.2
+#pycairo>=1.16.2
 pycparser==2.20
 pycrypto==2.6.1
 PySocks==1.7.1
 python-dateutil==2.8.1
 pythondialog==3.5.1
 pytrends==4.7.2
-pytz==2019.3
+pytz
 pyxattr
 pyxdg
 PyYAML
+pyxattr==0.7.2
+pyxdg==0.27
+PyYAML==5.4.1
 qrcode==5.3
 reportlab==3.4.0
 requests==2.23.0
@@ -60,3 +65,4 @@ unidiff==0.5.4
 urllib3==1.25.8
 wadllib==1.3.2
 youtube-dl>=2018.3.14
+

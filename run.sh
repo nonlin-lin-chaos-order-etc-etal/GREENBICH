@@ -12,3 +12,4 @@ export CL="./venv/bin/python ./launch_all.py"
 echo "launching $CL"
 $CL
 
+
