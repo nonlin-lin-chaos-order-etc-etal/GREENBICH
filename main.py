@@ -22,11 +22,17 @@ LOG_TRACE = True
 
 ENABLE_EXMO = False
 
+
+def get_pretty_json_string(value):
+    return json.dumps(value, indent=4, sort_keys=True, ensure_ascii=False)
+
+
 def settings_by_key(key):
-    return config[key]
+    return getconfig()[key]
+
 
 def getconfig():
-    return config
+    return config  # TODO use local contexts instead of globals
 
 
 def get_create_ctx_from_mask2ctx(mask2ctx, mask):
@@ -145,7 +151,7 @@ def ru_latest_news_newsapi_org():
     if resp.status_code != 200: return []
     #print (__file__, resp.text)
     rjson = resp.json()
-    print(__file__, "ns_resp",json.dumps(rjson, sort_keys=True, indent=4))
+    print (f'{__file__} {__name__} ns_resp {get_pretty_json_string(rjson)}')
     if "articles" in rjson:
         arts = rjson["articles"]
         if arts is None: return []
@@ -157,9 +163,9 @@ def ua_latest_news_newsapi_org():
     url="http://newsapi.org/v2/top-headlines?country=ua&apiKey=%s" % apikey
     resp = requests.get(url=url)
     if resp.status_code != 200: return []
-    #print (__file__, resp.text)
+    # print (__file__, resp.text)
     rjson = resp.json()
-    print(__file__, "ns_resp",json.dumps(rjson, sort_keys=True, indent=4))
+    print (f'{__file__} {__name__} ns_resp {get_pretty_json_string(rjson)}')
     if "articles" in rjson:
         arts = rjson["articles"]
         if arts is None: return []
@@ -173,7 +179,7 @@ def latest_news_google_news_ru():
     if resp.status_code != 200: return []
     # print (__file__, resp.text)
     rjson = resp.json()
-    print(__file__, "ns_resp",json.dumps(rjson, sort_keys=True, indent=4))
+    print (f'{__file__} {__name__} ns_resp {get_pretty_json_string(rjson)}')
     if "articles" in rjson:
         arts = rjson["articles"]
         if arts is None: return []
@@ -184,11 +190,13 @@ def latest_news_google_news_ru():
 def format_currency(value):
     return "{:0,.2f}".format(float(value))
 
+
 def format_total_cap(total_market_cap_usd):
     total_market_cap_usd_t = float(total_market_cap_usd) / 1.0e12
     b = "{:0,.2f}".format(total_market_cap_usd_t)+"T USD"
     p = "{:0,.2f}".format(total_market_cap_usd_t/60.0*100.0)+'% of entire world cap e.g. 60T USD'
     return b+" ("+p+')'
+
 
 def fetch_last_hour_new_news(old_news_cache=None, kwlist=None):
     array = get_trending_searches(country_str="russia", kwlist=kwlist)
@@ -200,17 +208,20 @@ def fetch_last_hour_new_news(old_news_cache=None, kwlist=None):
         newer.append(line)
     return newer
 
+
 def is_runews_command(bot_nick, str_line):
-    #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
+    """
+        :defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
+    """
     dataTokensDelimitedByWhitespace = str_line.split(" ")
-    #dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
-    #dataTokensDelimitedByWhitespace[1] PRIVMSG
+    # dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
+    # dataTokensDelimitedByWhitespace[1] PRIVMSG
 
-    #dataTokensDelimitedByWhitespace[2] #ru
-    # OR
-    #dataTokensDelimitedByWhitespace[2] BichBot
+    # dataTokensDelimitedByWhitespace[2] #ru
+    #  OR
+    # dataTokensDelimitedByWhitespace[2] BichBot
 
-    #dataTokensDelimitedByWhitespace[3] :!курс
+    # dataTokensDelimitedByWhitespace[3] :!курс
     communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
     where_mes_exc = communicationsLineName
     if len(dataTokensDelimitedByWhitespace) > 3:
@@ -576,7 +587,7 @@ class MyBot:
     def write_quotes(self):
         print(__name__, "writing quotes.json")
         with open('quotes.json', 'w') as myfile:
-            myfile.write(json.dumps(self.quotes_array))
+            myfile.write(get_pretty_json_string(self.quotes_array))
 
     def read_quotes(self):
         # read file
