@@ -1,10 +1,8 @@
 from random import choice
-import traceback as tb
 import traceback
 import socket
 import pytz
 # import socks
-import sys
 import time
 import requests
 import settings
@@ -15,7 +13,6 @@ from urllib.parse import unquote
 from urllib.parse import quote as urlencode
 from settings import settings as option
 from threading import Thread
-import traceback
 import datetime
 
 LOG_TRACE = True
