@@ -1,399 +1,60 @@
-from random import choice
-import traceback
+import datetime
+# import whois
+import json
 import socket
-import pytz
-# import socks
 import time
+import traceback
+from random import choice
+from threading import Thread
+from urllib.parse import quote as urlencode
+from urllib.parse import unquote
+
+import pytz
 import requests
+import socks
+from pytrends.request import TrendReq
+
 import settings
 import translate_krzb
-import whois
-import json
-from urllib.parse import unquote
-from urllib.parse import quote as urlencode
 from settings import settings as option
-from threading import Thread
-import datetime
 
 LOG_TRACE = True
 
 ENABLE_EXMO = False
 
 
+print(f"{__file__}, {__name__}: starting")
+
+
 def get_pretty_json_string(value):
     return json.dumps(value, indent=4, sort_keys=True, ensure_ascii=False)
 
 
-def settings_by_key(key):
-    return getconfig()[key]
-
-
-def getconfig():
-    return config  # TODO use local contexts instead of globals
-
-
-def get_create_ctx_from_mask2ctx(mask2ctx, mask):
-    if mask in mask2ctx:
-        ctx = mask2ctx[mask]
-    else:
-        ctx = {}
-        mask2ctx[mask] = ctx
-    return ctx
-
-
-def replace_nick_mask2ctx(mask2ctx, prev_mask, new_mask):
-    print(__name__, "replace_nick_mask2ctx(, prev_mask='" + str(prev_mask) + "', new_mask=" + str(new_mask) + ")",
-          flush=True)
-    if prev_mask in mask2ctx:
-        ctx = mask2ctx[prev_mask]
-        del mask2ctx[prev_mask]
-    else:
-        ctx = {}
-    mask2ctx[new_mask] = ctx
-
-
-def set_prev_msg(mask2ctx, mask, message):
-    print(__name__, f"set_prev_msg enter, args: (, mask='{mask}', message='{message}')", flush=True)
-    if mask is None or message is None:
-        print(__name__, "set_prev_msg point 1, leaving", flush=True)
-        return
-    # print(__name__, "set_prev_msg point 2", flush=True)
-    ctx = get_create_ctx_from_mask2ctx(mask2ctx, mask)
-    # print(__name__, "set_prev_msg point 3", flush=True)
-    ctx["prev_msg"] = message
-    print(__name__, "set_prev_msg point 4, leaving", flush=True)
-
-
-def get_prev_msg(mask2ctx, mask):
-    ctx = get_create_ctx_from_mask2ctx(mask2ctx, mask)
-    return ctx["prev_msg"] if "prev_msg" in ctx else None
-
-
-def fmt2(your_numeric_value):
-    return "{:0,.2f}".format(float(your_numeric_value))
-
-
-from pytrends.request import TrendReq
-
-while True:
-    try:
-        pytrends = TrendReq(hl='ru-RU', tz=360)
-        break
-    except KeyboardInterrupt as e:
-        raise e
-    except:
-        traceback.print_exc()
-        TIME_TO_SLEEP_SECONDS = 1
-        print("sleeping %s seconds" % str(TIME_TO_SLEEP_SECONDS))
-        time.sleep(TIME_TO_SLEEP_SECONDS)
-        continue
-
-
-def get_interest_by_country(country):
-    return pytrends.interest_by_region(resolution='COUNTRY', inc_low_vol=True, inc_geo_code=False)
-
-
-def get_trending_searches(country_str, kwlist=None):
-    return pytrends.trending_searches(pn=country_str).to_numpy()
-
-
-def convert_hex_to_ip(hex_value):
-    a = int(hex_value[0:2], 16)
-    b = int(hex_value[2:4], 16)
-    c = int(hex_value[4:6], 16)
-    d = int(hex_value[6:8], 16)
-    return "%s.%s.%s.%s" % (str(a), str(b), str(c), str(d))
-
-
-# Function of parcing of get TITLE from link.
-def link_title(n):
-    if 'http://' in n or 'https://' in n:
-        try:
-            link_r = n.split('//', 1)[1].split(' ', 1)[0].rstrip()
-        except:
-            print('Link wrong!')
-    elif 'www.' in n:
-        try:
-            link_r = n.split('www.', 1)[1].split(' ', 1)[0].rstrip()
-        except:
-            print('Link wrong!')
-    link = 'http://' + link_r
-    max_t_link = 30
-    t_link = time.time()
-    for i in requests.get(link, stream=True, verify=False):
-        t2_link = time.time()
-        if t2_link > t_link + max_t_link:
-            requests.get(link, stream=True).close()
-            print('Title - Ошибка! Превышено время ожидания!')
-            link_stat = False
-            break
-        else:
-            link_stat = True
-
-    if link_stat == True:
-        unquoted_link = unquote(link)
-        get_title = requests.get(link, timeout=10)
-        txt_title = get_title.text
-        if '</TITLE>' in txt_title or '</title>' in txt_title \
-                or '</Title>' in txt_title:
-            if '</TITLE>' in txt_title:
-                title = '\x02Title\x02 of ' + n + ': ' + \
-                        txt_title.split('</TITLE>', 1)[0].split('>')[-1]
-            elif '</title>' in txt_title:
-                title = '\x02Title\x02 of ' + n + ': ' + \
-                        txt_title.split('</title>', 1)[0].split('>')[-1]
-            elif '</Title>' in txt_title:
-                title = '\x02Title\x02 of ' + n + ': ' + \
-                        txt_title.split('</Title>', 1)[0].split('>')[-1]
-
-            return title.replace('\r', '').replace('\n', '').replace \
-                ('www.', '').replace('http://', '').replace \
-                ('https://', '').strip()
-        else:
-            return 'Title not found'
-
-
-def ru_latest_news_newsapi_org():
-    apikey = option("newsapi_apikey")
-    url = "http://newsapi.org/v2/top-headlines?country=ru&apiKey=%s" % apikey
-    resp = requests.get(url=url)
-    if resp.status_code != 200: return []
-    # print (__file__, resp.text)
-    rjson = resp.json()
-    print(f'{__file__} {__name__} ns_resp {get_pretty_json_string(rjson)}')
-    if "articles" in rjson:
-        arts = rjson["articles"]
-        if arts is None: return []
-        return arts
-    return []
-
-
-def ua_latest_news_newsapi_org():
-    apikey = option("newsapi_apikey")
-    url = "http://newsapi.org/v2/top-headlines?country=ua&apiKey=%s" % apikey
-    resp = requests.get(url=url)
-    if resp.status_code != 200: return []
-    # print (__file__, resp.text)
-    rjson = resp.json()
-    print(f'{__file__} {__name__} ns_resp {get_pretty_json_string(rjson)}')
-    if "articles" in rjson:
-        arts = rjson["articles"]
-        if arts is None: return []
-        return arts
-    return []
-
-
-def latest_news_google_news_ru():
-    apikey = option("newsapi_apikey")
-    url = "http://newsapi.org/v2/top-headlines?sources=google-news-ru&apiKey=%s" % apikey
-    resp = requests.get(url=url)
-    if resp.status_code != 200: return []
-    # print (__file__, resp.text)
-    rjson = resp.json()
-    print(f'{__file__} {__name__} ns_resp {get_pretty_json_string(rjson)}')
-    if "articles" in rjson:
-        arts = rjson["articles"]
-        if arts is None: return []
-        return arts
-    return []
-
-
-def format_currency(value):
-    return "{:0,.2f}".format(float(value))
-
-
-def format_total_cap(total_market_cap_usd):
-    total_market_cap_usd_t = float(total_market_cap_usd) / 1.0e12
-    b = "{:0,.2f}".format(total_market_cap_usd_t) + "T USD"
-    p = "{:0,.2f}".format(total_market_cap_usd_t / 60.0 * 100.0) + '% of entire world cap e.g. 60T USD'
-    return b + " (" + p + ')'
-
-
-def fetch_last_hour_new_news(old_news_cache=None, kwlist=None):
-    array = get_trending_searches(country_str="russia", kwlist=kwlist)
-    newer = []
-    for lines in array:
-        line = lines[0]
-        if line is None: continue
-        if line in old_news_cache: continue
-        newer.append(line)
-    return newer
-
-
-def is_runews_command(bot_nick, str_line):
-    """
-        :defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
-    """
-    dataTokensDelimitedByWhitespace = str_line.split(" ")
-    # dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
-    # dataTokensDelimitedByWhitespace[1] PRIVMSG
-
-    # dataTokensDelimitedByWhitespace[2] #ru
-    #  OR
-    # dataTokensDelimitedByWhitespace[2] BichBot
-
-    # dataTokensDelimitedByWhitespace[3] :!курс
-    communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
-    where_mes_exc = communicationsLineName
-    if len(dataTokensDelimitedByWhitespace) > 3:
-        line = " ".join(dataTokensDelimitedByWhitespace[3:])
-        is_in_private_query = where_mes_exc == bot_nick
-        bot_mentioned = bot_nick in line
-        commWithBot = is_in_private_query or bot_mentioned
-        return commWithBot and ("runews" in line or "руновости" in line) or ("!runews" in line or "!руновости" in line)
-    else:
-        return False
-
-
-def is_uanews_command(bot_nick, str_line):
-    #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
-    dataTokensDelimitedByWhitespace = str_line.split(" ")
-    # dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
-    # dataTokensDelimitedByWhitespace[1] PRIVMSG
-
-    # dataTokensDelimitedByWhitespace[2] #ru
-    # OR
-    # dataTokensDelimitedByWhitespace[2] BichBot
-
-    # dataTokensDelimitedByWhitespace[3] :!курс
-    communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
-    where_mes_exc = communicationsLineName
-    if len(dataTokensDelimitedByWhitespace) > 3:
-        line = " ".join(dataTokensDelimitedByWhitespace[3:])
-        is_in_private_query = where_mes_exc == bot_nick
-        bot_mentioned = bot_nick in line
-        commWithBot = is_in_private_query or bot_mentioned
-        return commWithBot and ("uanews" in line or "укрновости" in line) or (
-                    "!uanews" in line or "!укрновости" in line)
-    else:
-        return False
-
-
-def is_search_command(bot_nick, str_line):
-    #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
-    dataTokensDelimitedByWhitespace = str_line.split(" ")
-    # dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
-    # dataTokensDelimitedByWhitespace[1] PRIVMSG
-
-    # dataTokensDelimitedByWhitespace[2] #ru
-    # OR
-    # dataTokensDelimitedByWhitespace[2] BichBot
-
-    # dataTokensDelimitedByWhitespace[3] :!курс
-    #:server.org 332 GreenBich #ru :поисковик: search.org
-    if len(dataTokensDelimitedByWhitespace) < 4: return False
-    if dataTokensDelimitedByWhitespace[1] != "PRIVMSG": return False
-    communicationsLineName = dataTokensDelimitedByWhitespace[2]
-    where_mes_exc = communicationsLineName
-    line = " ".join(dataTokensDelimitedByWhitespace[3:])
-    is_in_private_query = where_mes_exc == bot_nick
-    bot_mentioned = bot_nick in line
-    commWithBot = is_in_private_query or bot_mentioned
-    return commWithBot and ("search" in line or "поиск" in line) or ("!search" in line or "!поиск" in line)
-
-
-def is_search_command2(bot_nick, str_line):
-    #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
-    dataTokensDelimitedByWhitespace = data.split(" ")
-    # dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
-    # dataTokensDelimitedByWhitespace[1] PRIVMSG
-
-    # dataTokensDelimitedByWhitespace[2] #ru
-    # OR
-    # dataTokensDelimitedByWhitespace[2] BichBot
-
-    # dataTokensDelimitedByWhitespace[3] :!курс
-    communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(dataTokensDelimitedByWhitespace) > 2 else None
-    where_mes_exc = communicationsLineName
-    if len(dataTokensDelimitedByWhitespace) > 3:
-        line = " ".join(dataTokensDelimitedByWhitespace[3:])
-        is_in_private_query = where_mes_exc == bot_nick
-        bot_mentioned = bot_nick in line
-        commWithBot = is_in_private_query or bot_mentioned
-        return commWithBot and ("search2" in line or "поиск2" in line) or ("!search2" in line or "!поиск2" in line)
-    else:
-        return False
-
-
-class MyPingsToServerThread(Thread):
-    def __init__(self, myBot):
-        Thread.__init__(self)
-        self.myBot = myBot
-
-    def run(self):
-        self.myBot.pinger_of_server()
-
-
-def print_wheel(wheel):
-    s = "{[\r\n"
-    for dt in wheel['datetimes']:
-        s += "  " + str(dt) + "\r\n"
-    s += "]}"
-    return s
-
-
-WHEEL_SIZE = 5
-WHEEL_TIME_SECONDS = 60
-
-
 class MyBot:
+    WHEEL_SIZE = 5
+    WHEEL_TIME_SECONDS = 60
+
     wheelGrants = {}
 
-    def grantCommand(self, sentBy, commLine):
-        sentBy = 'anyone'  # nicks don't matter as ddoser might use multiple random nicks
-        if not sentBy in self.wheelGrants:
-            wheel = {}
-            self.wheelGrants[sentBy] = wheel
-            wheel['datetimes'] = [datetime.datetime.now(pytz.utc)]
-            print(__name__, f"command_granted clause 1, wheel: {print_wheel(wheel)}")
-            return True
-        else:
-            wheel = self.wheelGrants[sentBy]
-            datetimes = wheel['datetimes']
+    old_news_cache = {}
+    old_news_cache_index = {}
 
-            while len(datetimes) > WHEEL_SIZE:
-                datetimes = datetimes[1:]
-            wheel['datetimes'] = datetimes
-            if len(datetimes) < WHEEL_SIZE:
-                print(__name__, f"command_granted clause 3, wheel: {print_wheel(wheel)}")
-                datetimes.append(datetime.datetime.now(pytz.utc))
-                wheel['datetimes'] = datetimes
-                return True
-            granted = datetimes[0] < datetime.datetime.now(pytz.utc) - datetime.timedelta(seconds=WHEEL_TIME_SECONDS)
-            if not granted:
-                print(__name__, f"command not granted, wheel: {print_wheel(wheel)}")
-                if "floodDetectedSentTime" in wheel:
-                    floodDetectedSentTime = wheel["floodDetectedSentTime"]
-                else:
-                    floodDetectedSentTime = datetime.datetime.now(pytz.utc) - datetime.timedelta(days=1)
+    databuf = b''
+    socket_closed = False
 
-                if floodDetectedSentTime < datetime.datetime.now(pytz.utc) - datetime.timedelta(
-                        seconds=WHEEL_TIME_SECONDS):
-                    wheel["floodDetectedSentTime"] = datetime.datetime.now(pytz.utc)
-                    self.send(f'PRIVMSG {commLine} :Flood detected, ignoring.\r\n')
-            else:
-                print(__name__, f"command_granted clause 2, wheel: {print_wheel(wheel)}")
-                datetimes.append(datetime.datetime.now(pytz.utc))
-                datetimes = datetimes[1:]
-                wheel['datetimes'] = datetimes
-            return granted
+    # min & max timer for voting stuff.
+    min_timer = 30
+    max_timer = 300
 
-    def connection_settings(self, key2):
-        return self.connection_settings_dict()[key2]
+    data = None
+    irc_socket = None
 
-    def connection_option(self, key2):
-        return self.connection_settings(key2)
+    btcToRurFloat = "Unknown"
 
-    def connection_setting_or_None(self, key2):
-        dic = self.connection_settings_dict()
-        return dic[key2] if key2 in dic else None
-
-    def connection_settings_dict(self):
-        return self.connection_props
-
-    def __init__(self, settings_key, connection_props):
+    def __init__(self, settings_key, connection_settings: dict, config):
+        self.config = config
+        self.connection_props = connection_settings
         self.settings_key = settings_key
-        self.connection_props = connection_props
 
         self.irc_server_hostname = self.connection_settings('irc_server_hostname')
         self.port = int(self.connection_settings('port'))
@@ -413,12 +74,342 @@ class MyBot:
         self.gnome_btc_amount2_BTC_float = float(settings.settings('gnome_btc_amount2_BTC_float'))  # BTC
         self.master_secret = settings.settings('master_secret')
         self.gnome1rur = self.gnome1rur + (
-                    (self.gnome_btc_amount2_BTC_float - self.gnomeBtcTransaction1) * 9500.0 * 65.0)
+                (self.gnome_btc_amount2_BTC_float - self.gnomeBtcTransaction1) * 9500.0 * 65.0)
         self.measurementRur1 = self.gnome1rur
         self.measurementRur2 = self.gnome1rur
 
-    old_news_cache = {}
-    old_news_cache_index = {}
+    def settings_by_key(self, key):
+        return self.getconfig()[key]
+
+    def getconfig(self):
+        return self.config
+
+    @staticmethod
+    def get_create_ctx_from_mask2ctx(mask2ctx, mask):
+        if mask in mask2ctx:
+            ctx = mask2ctx[mask]
+        else:
+            ctx = {}
+            mask2ctx[mask] = ctx
+        return ctx
+
+    @staticmethod
+    def replace_nick_mask2ctx(mask2ctx, prev_mask, new_mask):
+        print(__name__, "replace_nick_mask2ctx(, prev_mask='" + str(prev_mask) + "', new_mask=" + str(new_mask) + ")",
+              flush=True)
+        if prev_mask in mask2ctx:
+            ctx = mask2ctx[prev_mask]
+            del mask2ctx[prev_mask]
+        else:
+            ctx = {}
+        mask2ctx[new_mask] = ctx
+
+    def set_prev_msg(self, mask2ctx, mask, message):
+        print(__name__, f"set_prev_msg enter, args: (, mask='{mask}', message='{message}')", flush=True)
+        if mask is None or message is None:
+            print(__name__, "set_prev_msg point 1, leaving", flush=True)
+            return
+        # print(__name__, "set_prev_msg point 2", flush=True)
+        ctx = self.get_create_ctx_from_mask2ctx(mask2ctx, mask)
+        # print(__name__, "set_prev_msg point 3", flush=True)
+        ctx["prev_msg"] = message
+        print(__name__, "set_prev_msg point 4, leaving", flush=True)
+
+    def get_prev_msg(self, mask2ctx, mask):
+        ctx = self.get_create_ctx_from_mask2ctx(mask2ctx, mask)
+        return ctx["prev_msg"] if "prev_msg" in ctx else None
+
+    @staticmethod
+    def fmt2(your_numeric_value):
+        return "{:0,.2f}".format(float(your_numeric_value))
+
+    @staticmethod
+    def get_interest_by_country(country):
+        return pytrends.interest_by_region(resolution='COUNTRY', inc_low_vol=True, inc_geo_code=False)
+
+    @staticmethod
+    def get_trending_searches(country_str, kwlist=None):
+        return pytrends.trending_searches(pn=country_str).to_numpy()
+
+    @staticmethod
+    def convert_hex_to_ip(hex_value):
+        a = int(hex_value[0:2], 16)
+        b = int(hex_value[2:4], 16)
+        c = int(hex_value[4:6], 16)
+        d = int(hex_value[6:8], 16)
+        return "%s.%s.%s.%s" % (str(a), str(b), str(c), str(d))
+
+    @staticmethod
+    def link_title(n):
+        """ Parses message to find links and get linked page titles """
+
+        title = "Unknown"
+        link_r = None
+        if 'http://' in n or 'https://' in n:
+            try:
+                link_r = n.split('//', 1)[1].split(' ', 1)[0].rstrip()
+            except:
+                traceback.print_exc()
+                print('Link wrong!')
+        link = 'http://' + link_r
+        get_title = requests.get(link, timeout=10)
+
+        unquoted_link = unquote(link)  # TODO WTF? call should be removed or used?
+        txt_title = get_title.text
+        if '</TITLE>' in txt_title or '</title>' in txt_title \
+                or '</Title>' in txt_title:
+            if '</TITLE>' in txt_title:
+                title = '\x02Title\x02 of ' + n + ': ' + \
+                        txt_title.split('</TITLE>', 1)[0].split('>')[-1]
+            elif '</title>' in txt_title:
+                title = '\x02Title\x02 of ' + n + ': ' + \
+                        txt_title.split('</title>', 1)[0].split('>')[-1]
+            elif '</Title>' in txt_title:
+                title = '\x02Title\x02 of ' + n + ': ' + \
+                        txt_title.split('</Title>', 1)[0].split('>')[-1]
+
+            return title.replace('\r', '').replace('\n', '').replace('www.', '').strip()
+        else:
+            return 'Title not found'
+
+    @staticmethod
+    def ru_latest_news_newsapi_org():
+        apikey = option("newsapi_apikey")
+        url = "http://newsapi.org/v2/top-headlines?country=ru&apiKey=%s" % apikey
+        resp = requests.get(url=url)
+        if resp.status_code != 200:
+            return []
+        # print (__file__, resp.text)
+        rjson = resp.json()
+        print(f'{__file__} {__name__} ns_resp {get_pretty_json_string(rjson)}')
+        if "articles" in rjson:
+            arts = rjson["articles"]
+            if arts is None:
+                return []
+            return arts
+        return []
+
+    @staticmethod
+    def ua_latest_news_newsapi_org():
+        apikey = option("newsapi_apikey")
+        url = "http://newsapi.org/v2/top-headlines?country=ua&apiKey=%s" % apikey
+        resp = requests.get(url=url)
+        if resp.status_code != 200:
+            return []
+        # print (__file__, resp.text)
+        rjson = resp.json()
+        print(f'{__file__} {__name__} ns_resp {get_pretty_json_string(rjson)}')
+        if "articles" in rjson:
+            arts = rjson["articles"]
+            if arts is None:
+                return []
+            return arts
+        return []
+
+    @staticmethod
+    def latest_news_google_news_ru():
+        apikey = option("newsapi_apikey")
+        url = "http://newsapi.org/v2/top-headlines?sources=google-news-ru&apiKey=%s" % apikey
+        resp = requests.get(url=url)
+        if resp.status_code != 200:
+            return []
+        # print (__file__, resp.text)
+        rjson = resp.json()
+        print(f'{__file__} {__name__} ns_resp {get_pretty_json_string(rjson)}')
+        if "articles" in rjson:
+            arts = rjson["articles"]
+            if arts is None:
+                return []
+            return arts
+        return []
+
+    @staticmethod
+    def format_currency(value):
+        return "{:0,.2f}".format(float(value))
+
+    @staticmethod
+    def format_total_cap(total_market_cap_usd):
+        total_market_cap_usd_t = float(total_market_cap_usd) / 1.0e12
+        b = "{:0,.2f}".format(total_market_cap_usd_t) + "T USD"
+        p = "{:0,.2f}".format(total_market_cap_usd_t / 60.0 * 100.0) + '% of entire world cap e.g. 60T USD'
+        return b + " (" + p + ')'
+
+    def fetch_last_hour_new_news(self, old_news_cache=None, kwlist=None):
+        array = self.get_trending_searches(country_str="russia", kwlist=kwlist)
+        newer = []
+        for lines in array:
+            line = lines[0]
+            if line is None:
+                continue
+            if line in old_news_cache:
+                continue
+            newer.append(line)
+        return newer
+
+    @staticmethod
+    def is_runews_command(bot_nick, str_line):
+        """
+            :x!y@example.org PRIVMSG BichBot :msg text
+        """
+        dataTokensDelimitedByWhitespace = str_line.split(" ")
+        # dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
+        # dataTokensDelimitedByWhitespace[1] PRIVMSG
+
+        # dataTokensDelimitedByWhitespace[2] #ru
+        #  OR
+        # dataTokensDelimitedByWhitespace[2] BichBot
+
+        # dataTokensDelimitedByWhitespace[3] :!курс
+        communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(
+            dataTokensDelimitedByWhitespace) > 2 else None
+        where_mes_exc = communicationsLineName
+        if len(dataTokensDelimitedByWhitespace) > 3:
+            line = " ".join(dataTokensDelimitedByWhitespace[3:])
+            is_in_private_query = where_mes_exc == bot_nick
+            bot_mentioned = bot_nick in line
+            commWithBot = is_in_private_query or bot_mentioned
+            return commWithBot and ("runews" in line or "руновости" in line) or (
+                    "!runews" in line or "!руновости" in line)
+        else:
+            return False
+
+    def is_uanews_command(self, bot_nick, str_line):
+        #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
+        dataTokensDelimitedByWhitespace = str_line.split(" ")
+        # dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
+        # dataTokensDelimitedByWhitespace[1] PRIVMSG
+
+        # dataTokensDelimitedByWhitespace[2] #ru
+        # OR
+        # dataTokensDelimitedByWhitespace[2] BichBot
+
+        # dataTokensDelimitedByWhitespace[3] :!курс
+        communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(
+            dataTokensDelimitedByWhitespace) > 2 else None
+        where_mes_exc = communicationsLineName
+        if len(dataTokensDelimitedByWhitespace) > 3:
+            line = " ".join(dataTokensDelimitedByWhitespace[3:])
+            is_in_private_query = where_mes_exc == bot_nick
+            bot_mentioned = bot_nick in line
+            commWithBot = is_in_private_query or bot_mentioned
+            return commWithBot and ("uanews" in line or "укрновости" in line) or (
+                    "!uanews" in line or "!укрновости" in line)
+        else:
+            return False
+
+    def is_search_command(self, bot_nick, str_line):
+        #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
+        dataTokensDelimitedByWhitespace = str_line.split(" ")
+        # dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
+        # dataTokensDelimitedByWhitespace[1] PRIVMSG
+
+        # dataTokensDelimitedByWhitespace[2] #ru
+        # OR
+        # dataTokensDelimitedByWhitespace[2] BichBot
+
+        # dataTokensDelimitedByWhitespace[3] :!курс
+        #:server.org 332 GreenBich #ru :поисковик: search.org
+        if len(dataTokensDelimitedByWhitespace) < 4: return False
+        if dataTokensDelimitedByWhitespace[1] != "PRIVMSG": return False
+        communicationsLineName = dataTokensDelimitedByWhitespace[2]
+        where_mes_exc = communicationsLineName
+        line = " ".join(dataTokensDelimitedByWhitespace[3:])
+        is_in_private_query = where_mes_exc == bot_nick
+        bot_mentioned = bot_nick in line
+        commWithBot = is_in_private_query or bot_mentioned
+        return commWithBot and ("search" in line or "поиск" in line) or ("!search" in line or "!поиск" in line)
+
+    def is_search_command2(self, bot_nick, str_line):
+        #:defender!~defender@example.org PRIVMSG BichBot :Чтобы получить войс, ответьте на вопрос: Как называется blah blah?
+        dataTokensDelimitedByWhitespace = self.data.split(" ")
+        # dataTokensDelimitedByWhitespace[0] :nick!uname@addr.i2p
+        # dataTokensDelimitedByWhitespace[1] PRIVMSG
+
+        # dataTokensDelimitedByWhitespace[2] #ru
+        # OR
+        # dataTokensDelimitedByWhitespace[2] BichBot
+
+        # dataTokensDelimitedByWhitespace[3] :!курс
+        communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(
+            dataTokensDelimitedByWhitespace) > 2 else None
+        where_mes_exc = communicationsLineName
+        if len(dataTokensDelimitedByWhitespace) > 3:
+            line = " ".join(dataTokensDelimitedByWhitespace[3:])
+            is_in_private_query = where_mes_exc == bot_nick
+            bot_mentioned = bot_nick in line
+            commWithBot = is_in_private_query or bot_mentioned
+            return commWithBot and ("search2" in line or "поиск2" in line) or ("!search2" in line or "!поиск2" in line)
+        else:
+            return False
+
+    class MyPingsToServerThread(Thread):
+        def __init__(self, my_bot):
+            Thread.__init__(self)
+            self.my_bot = my_bot
+
+        def run(self):
+            self.my_bot.pinger_of_server()
+
+    @staticmethod
+    def print_wheel(wheel):
+        s = "{[\r\n"
+        for dt in wheel['datetimes']:
+            s += "  " + str(dt) + "\r\n"
+        s += "]}"
+        return s
+
+    def grantCommand(self, sent_by, commLine):
+        sent_by = 'anyone'  # nicks don't matter as ddoser might use multiple random nicks
+        if not sent_by in self.wheelGrants:
+            wheel = {}
+            self.wheelGrants[sent_by] = wheel
+            wheel['datetimes'] = [datetime.datetime.now(pytz.utc)]
+            print(__name__, f"command_granted clause 1, wheel: {self.print_wheel(wheel)}")
+            return True
+        else:
+            wheel = self.wheelGrants[sent_by]
+            datetimes = wheel['datetimes']
+
+            while len(datetimes) > self.WHEEL_SIZE:
+                datetimes = datetimes[1:]
+            wheel['datetimes'] = datetimes
+            if len(datetimes) < self.WHEEL_SIZE:
+                print(__name__, f"command_granted clause 3, wheel: {self.print_wheel(wheel)}")
+                datetimes.append(datetime.datetime.now(pytz.utc))
+                wheel['datetimes'] = datetimes
+                return True
+            granted = datetimes[0] < datetime.datetime.now(pytz.utc) - datetime.timedelta(
+                seconds=self.WHEEL_TIME_SECONDS)
+            if not granted:
+                print(__name__, f"command not granted, wheel: {self.print_wheel(wheel)}")
+                if "floodDetectedSentTime" in wheel:
+                    floodDetectedSentTime = wheel["floodDetectedSentTime"]
+                else:
+                    floodDetectedSentTime = datetime.datetime.now(pytz.utc) - datetime.timedelta(days=1)
+
+                if floodDetectedSentTime < datetime.datetime.now(pytz.utc) - datetime.timedelta(
+                        seconds=self.WHEEL_TIME_SECONDS):
+                    wheel["floodDetectedSentTime"] = datetime.datetime.now(pytz.utc)
+                    self.send(f'PRIVMSG {commLine} :Flood detected, ignoring.\r\n')
+            else:
+                print(__name__, f"command_granted clause 2, wheel: {self.print_wheel(wheel)}")
+                datetimes.append(datetime.datetime.now(pytz.utc))
+                datetimes = datetimes[1:]
+                wheel['datetimes'] = datetimes
+            return granted
+
+    def connection_settings(self, key2):
+        return self.connection_settings_dict()[key2]
+
+    def connection_option(self, key2):
+        return self.connection_settings(key2)
+
+    def connection_setting_or_None(self, key2):
+        dic = self.connection_settings_dict()
+        return dic[key2] if key2 in dic else None
+
+    def connection_settings_dict(self):
+        return self.connection_props
 
     def web_search(self, query_str, number_of_results):
         pageNumber = 1
@@ -432,6 +423,7 @@ class MyBot:
         for v in rjson["value"]: return v["url"]
         return None
 
+    """
     def web_search2(self, query_str, number_of_results):
         search2RestClient = Search2RestClient(option("dataforseo_api_login"), option("dataforseo_api_password"))
         resp_json = search2RestClient.get(path)
@@ -446,6 +438,7 @@ class MyBot:
         print("ws_resp", json.dumps(rjson, sort_keys=True, indent=4))
         for v in rjson["value"]: return v["url"]
         return None
+    """
 
     def news_search_ctxwebsrch(self, query_str, number_of_results):
         pageNumber = 1
@@ -462,6 +455,7 @@ class MyBot:
     def sendmsg(self, to_addr, msg):
         self.send('PRIVMSG %s :%s\r\n' % (to_addr, msg))
 
+    """
     def print_new_news_googletrends(self, to_addr, kwlist=None):
         old_news_cache = self.old_news_cache
         if to_addr in old_news_cache:
@@ -469,19 +463,20 @@ class MyBot:
         else:
             cache = {}
             old_news_cache[to_addr] = cache
-        array_of_strings = fetch_last_hour_new_news(cache, kwlist=kwlist)
-        cnt = get_news_count_for_channel(to_addr)
+        array_of_strings = self.fetch_last_hour_new_news(cache, kwlist=kwlist)
+        cnt = self.get_news_count_for_channel(to_addr)
         sent = 0
         index = 0
         for line in array_of_strings:
             if line is None: continue
-            resultUrl = news_search(line, 1)
+            resultUrl = self.news_search(line, 1)
             self.sendmsg(to_addr, "%s: %s %s" % (str((index + 1)), line, resultUrl if resultUrl else ""))
             cache[line] = {"recently_sent": True}
             sent = sent + 1
             index = index + 1
             if sent >= cnt: break
         if sent == 0: self.sendmsg(to_addr, "Нет новостей у меня")
+    """
 
     def print_new_runews_newsapi_org(self, to_addr):
         old_news_cache = self.old_news_cache
@@ -496,7 +491,7 @@ class MyBot:
         else:
             cache_index = []
             old_news_cache_index[to_addr] = cache_index
-        arts = ru_latest_news_newsapi_org() + latest_news_google_news_ru()
+        arts = self.ru_latest_news_newsapi_org() + self.latest_news_google_news_ru()
 
         cnt = self.get_news_count_for_channel(to_addr)
         sent = 0
@@ -529,7 +524,7 @@ class MyBot:
         else:
             cache_index = []
             old_news_cache_index[to_addr] = cache_index
-        arts = ua_latest_news_newsapi_org()
+        arts = self.ua_latest_news_newsapi_org()
 
         cnt = self.get_news_count_for_channel(to_addr)
         sent = 0
@@ -550,11 +545,12 @@ class MyBot:
         if sent == 0: self.sendmsg(to_addr, "Нет новостей у меня")
 
     def maybe_print_news(self, bot_nick, str_incoming_line):
+        sent_by = "unknown_sentBy"
         dataTokensDelimitedByWhitespace = str_incoming_line.split(" ")
         communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(
             dataTokensDelimitedByWhitespace) > 2 else None
-        if is_runews_command(bot_nick, str_incoming_line):
-            if self.grantCommand(sentBy, communicationsLineName):
+        if self.is_runews_command(bot_nick, str_incoming_line):
+            if self.grantCommand(sent_by, communicationsLineName):
                 kwlist = []
                 where_mes_exc = communicationsLineName
                 line = " ".join(dataTokensDelimitedByWhitespace[3:]) if len(
@@ -581,8 +577,8 @@ class MyBot:
                 else:
                     resultUrl = self.news_search_ctxwebsrch(kwlist[0], 1)
                     self.sendmsg(where_mes_exc, "%s" % (resultUrl if resultUrl else "Новостей не найдено"))
-        if is_uanews_command(bot_nick, str_incoming_line):
-            if self.grantCommand(sentBy, communicationsLineName):
+        if self.is_uanews_command(bot_nick, str_incoming_line):
+            if self.grantCommand(sent_by, communicationsLineName):
                 kwlist = []
                 where_mes_exc = communicationsLineName
                 line = " ".join(dataTokensDelimitedByWhitespace[3:]) if len(
@@ -670,7 +666,7 @@ class MyBot:
         self.sendmsg(at, f"Quote added: [{length + 1}] {quote}")
         pass
 
-    def maybe_quotes(self, str_incoming_line, sentBy, commLineName):
+    def maybe_quotes(self, str_incoming_line, sent_by, commLineName):
         tok1 = str_incoming_line.split(" ")
         if len(tok1) < 3: return False
         if tok1[1] != "PRIVMSG": return False
@@ -679,11 +675,11 @@ class MyBot:
         cmd = cmdtok[1]
         if not cmd.startswith("!!"): return False
         if cmd == "!!q":
-            if self.grantCommand(sentBy, commLineName):
+            if self.grantCommand(sent_by, commLineName):
                 self.print_quote(tok1)
                 return True
         if cmd == "!!aq":
-            if self.grantCommand(sentBy, commLineName):
+            if self.grantCommand(sent_by, commLineName):
                 self.add_quote(tok1)
                 return True
         return False
@@ -709,12 +705,12 @@ class MyBot:
         self.sendmsg(at, reply)
         return True
 
-    def maybe_print_search(self, bot_nick, str_incoming_line, sentBy):
+    def maybe_print_search(self, bot_nick, str_incoming_line, sent_by):
         dataTokensDelimitedByWhitespace = str_incoming_line.split(" ")
         communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(
             dataTokensDelimitedByWhitespace) > 2 else None
-        if is_search_command(bot_nick, str_incoming_line):
-            if self.grantCommand(sentBy, communicationsLineName):
+        if self.is_search_command(bot_nick, str_incoming_line):
+            if self.grantCommand(sent_by, communicationsLineName):
                 kwlist = []
                 where_mes_exc = communicationsLineName
                 line = " ".join(dataTokensDelimitedByWhitespace[3:]) if len(
@@ -742,9 +738,10 @@ class MyBot:
                     resultUrl = self.web_search(kwlist[0], 1)
                     self.sendmsg(where_mes_exc, "%s" % (resultUrl if resultUrl else "Результатов не найдено"))
 
-    def maybe_print_search2(self, bot_nick, str_incoming_line, sentBy, communicationsLineName):
-        if is_search_command2(bot_nick, str_incoming_line):
-            if self.grantCommand(sentBy, communicationsLineName):
+    """
+    def maybe_print_search2(self, bot_nick, str_incoming_line, sent_by, communicationsLineName):
+        if self.is_search_command2(bot_nick, str_incoming_line):
+            if self.grantCommand(sent_by, communicationsLineName):
                 kwlist = []
                 dataTokensDelimitedByWhitespace = str_incoming_line.split(" ")
                 communicationsLineName = dataTokensDelimitedByWhitespace[2] if len(
@@ -772,11 +769,9 @@ class MyBot:
                 if len(kwlist) == 0:
                     self.sendmsg(where_mes_exc, "Чего синьорам найти?")
                 else:
-                    resultUrl = web_search2(kwlist[0], 1)
+                    resultUrl = self.web_search2(kwlist[0], 1)
                     self.sendmsg(where_mes_exc, "%s" % (resultUrl if resultUrl else "Результатов не найдено"))
-
-    databuf = b''
-    socket_closed = False
+    """
 
     def init_socket(self, client_socket):
         self.databuf = b''
@@ -858,10 +853,6 @@ class MyBot:
         retval = self.irc_socket.send(bytes(msg, 'utf-8'))
         return retval
 
-    # Install min & max timer vote.
-    min_timer = 30
-    max_timer = 300
-
     def get_news_count_for_channel(self, commLineName):
         props = self.channelsProps[commLineName] if commLineName in self.channelsProps else None
         if props is None: return 10
@@ -883,6 +874,7 @@ class MyBot:
                 return
 
     def login_and_loop(self):
+        global sys, tb
         while True:
             print("---new iter---", flush=True)
             try:
@@ -894,9 +886,9 @@ class MyBot:
                     host = self.connection_option('socks5_host')
                     print(f"new socks.socksocket({host})")
                     self.irc_socket = socks.socksocket()
-                    self.irc_socket.set_proxy(socks.SOCKS5, host, \
+                    self.irc_socket.set_proxy(socks.SOCKS5, host,
                                               self.connection_option('socks5_port'), True,
-                                              self.connection_option('socks5_username'), \
+                                              self.connection_option('socks5_username'),
                                               self.connection_option('socks5_password'))
                 else:
                     print("new socket(AF_INET,SOCK_STREAM)")
@@ -963,14 +955,14 @@ class MyBot:
                         data = self.get_line(self.irc_socket).decode("UTF-8")
                         print("got line:[" + data + "]", flush=True)
                         if data == "":
-                            print("data=='', self.irc_socket.close(), keepingConnection=False, iterating...");
+                            print("data=='', self.irc_socket.close(), keepingConnection=False, iterating...")
                             self.irc_socket.close()
                             keepingConnection = False
                             continue
                     except UnicodeDecodeError as decodeException:
                         print(f"UnicodeDecodeError {decodeException}, iterating...")
                         continue
-                    tokens1 = data.split(" ");
+                    tokens1 = data.split(" ")
 
                     sender_mask = None
 
@@ -988,7 +980,7 @@ class MyBot:
                     lineJoined = " ".join(dataTokensDelimitedByWhitespace[3:]) if len(
                         dataTokensDelimitedByWhitespace) >= 4 else ""
                     sender = communicationsLineName
-                    sentBy = dataTokensDelimitedByWhitespace[0][1:]
+                    sent_by = dataTokensDelimitedByWhitespace[0][1:]
 
                     if len(tokens1) > 1 and tokens1[1] == "433":  # "Nickname is already in use" in data
                         self.botNickSalt = self.botNickSalt + 1
@@ -1021,7 +1013,7 @@ class MyBot:
                     # 001 welcome
                     spws = tokens1
                     if len(spws) > 1 and spws[1] == "001":
-                        MyPingsToServerThread(self).start()
+                        self.MyPingsToServerThread(self).start()
                         self.send('MODE ' + self.botName + ' +xB\r\n')
                         continue
 
@@ -1046,9 +1038,7 @@ class MyBot:
                             except:
                                 print(__name__, 'error getting ip_user')
                     except:
-                        import traceback as tb
-                        tb.print_exc()
-                        import sys
+                        traceback.print_exc()
                         sys.stderr.flush()
 
                     # got line:[:test1!~username@ipaddr NICK :test2]
@@ -1065,12 +1055,12 @@ class MyBot:
                                 new_nick = msg[1:]
                                 new_mask = new_nick + "!" + old_mask_split[1]
                                 print(__name__, "new_mask: '" + new_mask + "'", flush=True)
-                                replace_nick_mask2ctx(mask2ctx, old_mask, new_mask)
+                                self.replace_nick_mask2ctx(mask2ctx, old_mask, new_mask)
                     except:
-                        import traceback as tb
-                        tb.print_exc()
-                        import sys
+                        traceback.print_exc()
                         sys.stderr.flush()
+
+                    where_message = "unknown_where"
 
                     if self.enableother1 or self.connection_setting_or_None("enable_krako_translation"):
                         # print(__file__, "krako test")
@@ -1078,86 +1068,86 @@ class MyBot:
                             where_message = communicationsLineName
                             if message is not None and (("!k" in message) or ("!к" in message)) and \
                                     dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
-                                if self.grantCommand(sentBy, communicationsLineName):
+                                if self.grantCommand(sent_by, communicationsLineName):
                                     print(__name__, "krako test success", flush=True)
                                     if (message == "!k") or (message == "!к"):
                                         print(__name__, "krako: mask2ctx='" + str(mask2ctx) + "', sender_mask='" + str(
                                             sender_mask) + "'", flush=True)
-                                        prev_msg = get_prev_msg(mask2ctx, sender_mask)
+                                        prev_msg = self.get_prev_msg(mask2ctx, sender_mask)
                                         print(__name__, "krako translating prev_msg: '" + str(prev_msg) + "'",
                                               flush=True)
                                         tr_txt = prev_msg
                                     else:
-                                        if (':!k' in lineJoined):
+                                        if ':!k' in lineJoined:
                                             tr_txt = message.split('!k ', 1)[1].strip()
                                         else:
-                                            if (':!к' in lineJoined): tr_txt = message.split('!к ', 1)[1].strip()
+                                            if ':!к' in lineJoined:
+                                                tr_txt = message.split('!к ', 1)[1].strip()
+                                            else:
+                                                raise AssertionError("kr1")
                                     res_txt = translate_krzb.tr(tr_txt)
                                     self.send(
                                         'PRIVMSG ' + where_message + ' :\x02перевод с кракозябьечьего:\x02 ' + res_txt + '\r\n')
                                     continue
                         except KeyboardInterrupt as ex:
-                            import traceback as tb
                             tb.print_exc()
-                            import sys
                             sys.stderr.flush()
                             self.send('PRIVMSG ' + where_message + ' :\x02!k error:\x02 ' + str(ex) + '\r\n')
                             raise ex
                         except BaseException as ex:
-                            import traceback as tb
                             tb.print_exc()
-                            import sys
                             sys.stderr.flush()
                             self.send('PRIVMSG ' + where_message + ' :\x02!k error:\x02 ' + str(ex) + '\r\n')
                             continue
 
-                    # print(__name__, "before set_prev_msg: message='"+str(message)+"', sender_mask='"+str(sender_mask)+"'")
+                    """
+                    print(__name__, "before set_prev_msg: message='"+str(message)+"', sender_mask='"+str(sender_mask)+"'")
+                    """
                     if message is not None and sender_mask is not None:
                         # print(__name__, "set_prev_msg")
                         try:
-                            set_prev_msg(mask2ctx, sender_mask, message)
+                            self.set_prev_msg(mask2ctx, sender_mask, message)
                             print(__name__, "set_prev_msg left ok", flush=True)
                         except KeyboardInterrupt as e:
                             print(__name__, "set_prev_msg left with exception: KeyboardInterrupt", flush=True)
                             raise e
                         except:
-                            tb.print_exc()
+                            traceback.print_exc()
                             print(__name__, "set_prev_msg left with exception", flush=True)
 
                     # print(__name__, "point 3.1", flush=True)
                     if self.enableother1 or self.connection_setting_or_None("enable_hextoip"):
                         if ':!hextoip' in lineJoined and dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
-                            if self.grantCommand(sentBy, communicationsLineName):
+                            if self.grantCommand(sent_by, communicationsLineName):
                                 print(__file__, "hextoip test success")
                                 try:
                                     hex_value = message.split('!hextoip ', 1)[1].strip()
                                     self.send(
-                                        'PRIVMSG ' + communicationsLineName + ' :\x02hextoip:\x02 ' + convert_hex_to_ip(
+                                        'PRIVMSG ' + communicationsLineName + ' :\x02hextoip:\x02 ' + self.convert_hex_to_ip(
                                             hex_value) + '\r\n')
-                                except KeyboardInterrupt as e:
-                                    raise e
+                                except KeyboardInterrupt:
+                                    raise
                                 except BaseException as e:
-                                    tb.print_exc()
-                                    self.send('PRIVMSG ' + communicationsLineName + ' :\x02hextoip:\x02 error: ' + str(
-                                        e) + '\r\n')
+                                    traceback.print_exc()
+                                    self.send(
+                                        f'PRIVMSG {communicationsLineName} :\x02hextoip:\x02 error: {str(e)}.\r\n'
+                                    )
                                 continue
-
-                    # -----------Bot_help---------------
 
                     """if 'PRIVMSG '+channel+' :!help' in data or 'PRIVMSG '+self.botName+' :!справка' in data or 'PRIVMSG '+self.botName+' :!помощь' in data or 'PRIVMSG '+self.botName+' :!хелп' in data:
                         self.send('NOTICE %s : Помощь по командам бота:\r\n' %(name))
                         self.send('NOTICE %s : ***Функция опроса: [!опрос (число) сек (тема опрос)], например\
-(пишем без кавычек: \"!опрос 60 сек Вы любите ониме?\", если не писать время, то время\
-установится на 60 сек\r\n' %(name))
+                        (пишем без кавычек: \"!опрос 60 сек Вы любите ониме?\", если не писать время, то время\
+                        установится на 60 сек\r\n' %(name))
                         self.send('NOTICE %s : ***Функция курса: просто пишите (без кавычек): "%s, курс". Писать\
-можно и в приват боту\r\n' %(name, bot_nick))
+                        можно и в приват боту\r\n' %(name, bot_nick))
                         self.send('NOTICE %s : ***Функция whois: что бы узнать расположение IP, просто пишите\
-(без кавычек): \"!где айпи (IP)\", пример: \"!где айпи \
-188.00.00.01\". Писать можно и в приват к боту\r\n' %(name))
+                        (без кавычек): \"!где айпи (IP)\", пример: \"!где айпи \
+                        188.00.00.01\". Писать можно и в приват к боту\r\n' %(name))
                         self.send('NOTICE %s : ***Функция перевода с английских букв на русские: \"!п tekst perevoda\", пример: \"!п ghbdtn\r\n' %(name))
 
                         """
-                    # -----------Antiflood-------------
+                    # Anti-flood
 
                     # print(__name__, "point 3.2", flush=True)
                     while_count += 1
@@ -1183,7 +1173,6 @@ class MyBot:
                         dict_count[name] += int(1)
 
                     # print(__name__, "point 3.4", flush=True)
-                    # Add key and value in massiv.  
                     if data.find('PRIVMSG') != -1 and name not in list_floodfree:
                         dict_users[name] = message
 
@@ -1211,14 +1200,13 @@ class MyBot:
                         mes_per_bot = message.split('!напиши ',1)[1]
                         self.send(mes_per_bot)
                     """
-                    # ---------Whois service--------------------------
                     # print(__name__, "point 2.3", flush=True)
-
                     if self.enableother1:
+                        """
                         if 'PRIVMSG ' + channel + ' :!где айпи' in data \
                                 or 'PRIVMSG ' + self.botName + ' :!где айпи' in data:
 
-                            if self.grantCommand(sentBy, communicationsLineName):
+                            if self.grantCommand(sent_by, communicationsLineName):
                                 if 'PRIVMSG ' + channel + ' :!где айпи' in data:
                                     where_message_whois = channel
 
@@ -1247,23 +1235,22 @@ class MyBot:
                                 except:
                                     print('get Value Error in whois service!')
                                     self.send('PRIVMSG ' + where_message_whois + ' :Ошибка! Вводите только IP адрес \
-    из цифр, разделенных точками!\r\n')
-
-                    # ---------Info from link in channel-------------
-
+                                            из цифр, разделенных точками!\r\n')
+                    # Info from link at channel
+    
                     if self.enableother1 and self.titleEnabled:
                         if 'PRIVMSG %s :' % (channel) in data and '.png' not in data and '.jpg' not in data and '.doc' \
                                 not in data and 'tiff' not in data and 'gif' not in data and '.jpeg' not in data and '.pdf' not in data:
                             if 'http://' in data or 'https://' in data or 'www.' in data:
-                                if self.grantCommand(sentBy, communicationsLineName):
+                                if self.grantCommand(sent_by, communicationsLineName):
                                     try:
                                         self.send('PRIVMSG %s :%s\r\n' % (channel, link_title(data)))
                                     except requests.exceptions.ConnectionError:
                                         print('Ошибка получения Title (requests.exceptions.ConnectionError)')
                                         self.send('PRIVMSG ' + channel + ' :Ошибка ConnectionError\r\n')
                                     except:
-                                        print('Exception')
-                                        # ---------Voting--------------------------------
+                                        traceback.print_exc()
+                                        # voting
 
                     # print(__name__, "point 2.2", flush=True)
                     t = time.time()
@@ -1273,7 +1260,7 @@ class MyBot:
                             print('счетчик опроса сброшен хозяином!')
                     if self.enableother1:
                         if 'PRIVMSG ' + channel + ' :!опрос ' in data and ip_user not in list_bot_not_work:
-                            if self.grantCommand(sentBy, communicationsLineName):
+                            if self.grantCommand(sent_by, communicationsLineName):
                                 if t2 == 0 or t > t2 + time_vote:
                                     if ' сек ' not in data:
                                         time_vote = 60
@@ -1292,7 +1279,7 @@ class MyBot:
 
                                     if min_timer > time_vote or max_timer < time_vote:
                                         self.send('PRIVMSG %s :Ошибка ввода таймера голосования.\
-    Введите от %s до %s сек!\r\n' % (channel, min_timer, max_timer))
+                                                    Введите от %s до %s сек!\r\n' % (channel, min_timer, max_timer))
                                         continue
 
                                     t2 = time.time()
@@ -1357,9 +1344,8 @@ class MyBot:
 
                     # Make variable message rusults voting.  
                     vote_all = count_vote_minus + count_vote_plus
-                    """
                     voting_results = 'PRIVMSG %s : результаты опроса: \"%s\", "Да" ответило: %d \
-человек(а), "Нет" ответило: %d человек(а), Всего ответило: %d человек(а) \
+                    человек(а), "Нет" ответило: %d человек(а), Всего ответило: %d человек(а) \
 \r\n' % (channel, message_voting, count_vote_plus, count_vote_minus, vote_all)
 
                     # When voting End: self.send to channel ruselts and time count to zero.  
@@ -1368,10 +1354,11 @@ class MyBot:
                         self.send('PRIVMSG '+channel+' : Опрос окончен!\r\n')
                         self.send(voting_results)
                     """
+
                     print("calling maybe_print_news()", flush=True)
                     self.maybe_print_news(self.botName, data)
-                    self.maybe_print_search(self.botName, data, sentBy)
-                    if self.maybe_quotes(data, sentBy, communicationsLineName):
+                    self.maybe_print_search(self.botName, data, sent_by)
+                    if self.maybe_quotes(data, sent_by, communicationsLineName):
                         print("maybe_quotes() returned True, continuing loop", flush=True)
                         continue
                     else:
@@ -1394,7 +1381,7 @@ class MyBot:
                         # print(__name__, f"point 4.3, line: '{line}', commWithBot: '{commWithBot}'", flush=True)
                         try:
                             if 'курс' in line and commWithBot:
-                                if self.grantCommand(sentBy, communicationsLineName):
+                                if self.grantCommand(sent_by, communicationsLineName):
                                     print(__name__, 'курс', flush=True)
                                     is_dialogue_with_master = False
                                     if where_mes_exc == self.botName:  # /query
@@ -1402,7 +1389,7 @@ class MyBot:
                                         tokensNick1 = tokensNick1[0].split(":")
                                         tokensNick1 = tokensNick1[1]
                                         where_mes_exc = tokensNick1
-                                        is_dialogue_with_master = master_secret in line
+                                        is_dialogue_with_master = self.master_secret in line
                                         if is_dialogue_with_master: self.send(
                                             'PRIVMSG %s :%s\r\n' % (where_mes_exc, "hello, Master!"))
                                     print('курс куда слать будем:', where_mes_exc, "is_dialogue_with_master:",
@@ -1440,16 +1427,16 @@ class MyBot:
                                             dash_usd = cmc["data"]["DASH"]["quote"]["USD"]["price"]
                                             doge_usd = cmc["data"]["DOGE"]["quote"]["USD"]["price"]
                                             zec_usd = cmc["data"]["ZEC"]["quote"]["USD"]["price"]
-                                            btc_usd_str = str(format_currency(btc_usd))
-                                            eth_usd_str = str(format_currency(eth_usd))
-                                            dash_usd_str = str(format_currency(dash_usd))
-                                            doge_usd_str = str(format_currency(doge_usd))
-                                            zec_usd_str = str(format_currency(zec_usd))
+                                            btc_usd_str = str(self.format_currency(btc_usd))
+                                            eth_usd_str = str(self.format_currency(eth_usd))
+                                            dash_usd_str = str(self.format_currency(dash_usd))
+                                            doge_usd_str = str(self.format_currency(doge_usd))
+                                            zec_usd_str = str(self.format_currency(zec_usd))
 
                                             rate_cmc_str += f'\x02BTC/USD:\x02 {btc_usd_str} \x02ETH/USD:\x02 {eth_usd_str} \x02DASH/USD:\x02 {dash_usd_str} \x02ZEC/USD:\x02 {zec_usd_str}'  # \x02DOGE/USD:\x02 {doge_usd_str}
 
                                         except (ConnectionError, Timeout, TooManyRedirects) as e:
-                                            tb.print_exc()
+                                            traceback.print_exc()
                                             rate_cmc_str += str(e)
 
                                         RUR_SYMBOL = "RUB"
@@ -1465,12 +1452,12 @@ class MyBot:
                                             cmc = json.loads(response.text)
                                             if LOG_TRACE: print("cmc_rur:", cmc)
                                             doge_rur = cmc["data"]["DOGE"]["quote"][RUR_SYMBOL]["price"]
-                                            doge_rur_str = str(format_currency(doge_rur))
+                                            doge_rur_str = str(self.format_currency(doge_rur))
 
                                             rate_cmc_str += f' \x02DOGE/RUR:\x02 {doge_rur_str}'
 
                                         except (ConnectionError, Timeout, TooManyRedirects) as e:
-                                            tb.print_exc()
+                                            traceback.print_exc()
                                             rate_cmc_str += str(e)
 
                                         url = 'https://pro-api.coinmarketcap.com/v1/global-metrics/quotes/latest'
@@ -1482,7 +1469,7 @@ class MyBot:
                                             cmc = json.loads(response.text)
                                             if LOG_TRACE: print("cmc global-metrics:", cmc)
                                             total_market_cap_usd = cmc["data"]["quote"]["USD"]["total_market_cap"]
-                                            total_market_cap_str = str(format_total_cap(total_market_cap_usd))
+                                            total_market_cap_str = str(self.format_total_cap(total_market_cap_usd))
 
                                             rate_cmc_str += ' \x02Total Crypto Cap:\x02 ' + total_market_cap_str + "."
 
@@ -1524,9 +1511,9 @@ class MyBot:
                                             bid = retval[0][1]
                                             ask = retval[0][3]
                                             vol24 = retval[0][8]
-                                            bid_str = str(format_currency(bid))
-                                            ask_str = str(format_currency(ask))
-                                            vol24_str = str(format_currency(vol24))
+                                            bid_str = str(self.format_currency(bid))
+                                            ask_str = str(self.format_currency(ask))
+                                            vol24_str = str(self.format_currency(vol24))
 
                                             kuna_str = 'Kuna.io \x02TON/USDT\x02: BID ' + bid_str + ' ASK ' + ask_str + ' VOL24 ' + vol24_str + "."
                                         except (ConnectionError, Timeout, TooManyRedirects) as e:
@@ -1556,31 +1543,37 @@ class MyBot:
                                                 volume24h_gst = float(gst_resp["volume24h"])
                                                 volume24h_btc_lit = gst_resp["volume24h_btc"]
                                                 volume24h_btc = float(volume24h_btc_lit)
-                                                volume24h_rur = btcToRurFloat * volume24h_btc if btcToRurFloat is not None else None
+                                                volume24h_rur = float(self.btcToRurFloat) * volume24h_btc if \
+                                                    self.btcToRurFloat != "Unknown" \
+                                                    else None
                                                 last_lit = gst_resp["last"]
                                                 last = float(last_lit)
-                                                last_rur = btcToRurFloat * last if btcToRurFloat is not None else None
+                                                last_rur = float(self.btcToRurFloat) * last if \
+                                                    self.btcToRurFloat != "Unknown" \
+                                                    else None
                                                 highestBuy_lit = gst_resp["highestBuy"]
                                                 highestBuy = float(highestBuy_lit)
-                                                highestBuy_rur = btcToRurFloat * highestBuy if btcToRurFloat is not None else None
+                                                highestBuy_rur = float(self.btcToRurFloat) * highestBuy if \
+                                                    self.btcToRurFloat != "Unknown" \
+                                                    else None
                                                 lowestSell_lit = gst_resp["lowestSell"]
                                                 lowestSell = float(lowestSell_lit)
-                                                lowestSell_rur = btcToRurFloat * lowestSell if btcToRurFloat is not None else None
+                                                lowestSell_rur = float(self.btcToRurFloat) * lowestSell if \
+                                                    self.btcToRurFloat != "Unknown" \
+                                                    else None
 
                                                 # fe_msg = "FreiEx(GST): VOL24:"+fmt2(volume24h_rur)+"RUR LAST:"+fmt2(last_rur)+"RUR S:"+fmt2(lowestSell_rur)+"RUR B:"+fmt2(highestBuy_rur)+"RUR"
                                                 fe_msg = f"FreiEx(GST_BTC): VOL24:{volume24h_btc_lit}BTC LAST:{last_lit} S:{lowestSell_lit} B:{highestBuy_lit}"
                                             else:
                                                 fe_msg = "Error in FreiEx(GST) response"
-                                        except KeyboardInterrupt as ex:
-                                            print("ex:", str(ex), flush=True)
-                                            raise e
+                                        except KeyboardInterrupt:
+                                            raise
                                         except BaseException as ex:
                                             print("ex:", str(ex), flush=True)
-                                            tb.print_exc()
-                                            import sys
+                                            traceback.print_exc()
                                             sys.stdout.flush()
                                             sys.stderr.flush()
-                                        print("after freiexchange poll", flush=True)
+                                        print("after frei exchange poll", flush=True)
 
                                         # exmo and frei
                                         if ENABLE_EXMO:
@@ -1612,14 +1605,16 @@ class MyBot:
                                                 else:
                                                     ircProtocolDisplayText_exmo = 'Курс Exmo: ' + \
                                                                                   'BTC/USD S ' + str(
-                                                        format_currency(exmo_BTC_USD_sell_price)) + ' B ' + str(
-                                                        format_currency(exmo_BTC_USD_json["buy_price"])) + " | " + \
+                                                        self.format_currency(exmo_BTC_USD_sell_price)) + ' B ' + str(
+                                                        self.format_currency(exmo_BTC_USD_json["buy_price"])) + " | " + \
                                                                                   'ETH/USD S ' + str(
-                                                        format_currency(exmo_ETH_USD_json["sell_price"])) + ' B ' + str(
-                                                        format_currency(exmo_ETH_USD_json["buy_price"])) + " | " + \
-                                                                                  "BTC/RUR S " + str(format_currency(
-                                                        float(exmo_ticker["BTC_RUB"]["sell_price"]))) + ' B ' + str(
-                                                        format_currency(
+                                                        self.format_currency(
+                                                            exmo_ETH_USD_json["sell_price"])) + ' B ' + str(
+                                                        self.format_currency(exmo_ETH_USD_json["buy_price"])) + " | " + \
+                                                                                  "BTC/RUR S " + str(
+                                                        self.format_currency(
+                                                            float(exmo_ticker["BTC_RUB"]["sell_price"]))) + ' B ' + str(
+                                                        self.format_currency(
                                                             float(exmo_ticker["BTC_RUB"]["buy_price"]))) + "."
 
                                             except (ConnectionError, Timeout, TooManyRedirects) as e:
@@ -1627,50 +1622,51 @@ class MyBot:
 
                                             # btcToRurFloat = None
                                             is_dialogue_with_master = False
-                                            if btcToRurFloat is not None and is_dialogue_with_master:
-                                                gnome2rur = btcToRurFloat * gnome_btc_amount2_BTC_float
-                                                gnomeDeltaGlobalRur = gnome2rur - gnome1rur
-                                                measurementRur1 = measurementRur2
-                                                measurementRur2 = gnome2rur
-                                                gnomeDeltaLocalRur = measurementRur2 - measurementRur1
-                                                print("gnome_btc_amount2_BTC_float:", gnome_btc_amount2_BTC_float,
-                                                      "gnome2rur:", gnome2rur, "btcToRurFloat:", btcToRurFloat,
-                                                      "gnomeDeltaGlobalRur:", gnomeDeltaGlobalRur, "measurementRur1:",
-                                                      measurementRur1, "measurementRur2:", measurementRur2,
-                                                      "gnomeDeltaLocalRur:", gnomeDeltaLocalRur, flush=True);
-                                                gnomeHodlDeltaStr = "Всего выросло: %s%s руб. Локально: %s%s руб. — %s" % ( \
-                                                    ("+" if gnomeDeltaGlobalRur >= 0 else ""),
-                                                    format_currency(gnomeDeltaGlobalRur), \
-                                                    ("+" if gnomeDeltaLocalRur >= 0 else ""),
-                                                    format_currency(gnomeDeltaLocalRur), \
-                                                    ("растёт денежка, растёт!" if gnomeDeltaLocalRur >= 0
-                                                     else "убытки-с =( читаем книжку! http://knijka.i2p/"));
+                                            if self.btcToRurFloat != "Unknown" and is_dialogue_with_master:
+                                                self.gnome2rur = float(self.btcToRurFloat) * float(self.gnome_btc_amount2_BTC_float)
+                                                self.gnomeDeltaGlobalRur = self.gnome2rur - self.gnome1rur
+                                                self.measurementRur1 = self.measurementRur2
+                                                self.measurementRur2 = self.gnome2rur
+                                                self.gnomeDeltaLocalRur = self.measurementRur2 - self.measurementRur1
+                                                print("gnome_btc_amount2_BTC_float:", self.gnome_btc_amount2_BTC_float,
+                                                      "gnome2rur:", self.gnome2rur, "btcToRurFloat:", self.btcToRurFloat,
+                                                      "gnomeDeltaGlobalRur:", self.gnomeDeltaGlobalRur, "measurementRur1:",
+                                                      self.measurementRur1, "measurementRur2:", self.measurementRur2,
+                                                      "gnomeDeltaLocalRur:", self.gnomeDeltaLocalRur, flush=True)
+                                                gnomeHodlDeltaStr = "Всего выросло: %s%s руб. Локально: %s%s руб. — %s" % (
+                                                    ("+" if self.gnomeDeltaGlobalRur >= 0 else ""),
+                                                    self.format_currency(self.gnomeDeltaGlobalRur),
+                                                    ("+" if self.gnomeDeltaLocalRur >= 0 else ""),
+                                                    self.format_currency(self.gnomeDeltaLocalRur),
+                                                    ("растёт денежка, растёт!" if self.gnomeDeltaLocalRur >= 0
+                                                     else "убытки-с =( читаем книжку! http://knijka.i2p/"))
                                             else:
-                                                gnomeHodlDeltaStr = "??? руб.";
+                                                gnomeHodlDeltaStr = "??? руб."
 
                                         # Bitcoin.com Markets API
                                         # Coming soon
                                         # https://developer.bitcoin.com/
 
+                                        ircProtocolDisplayText_exmo = None
                                         if ENABLE_EXMO:
                                             self.send_res_exc = '%s | %s | %s | %s' % (
-                                            str(fe_msg), rate_cmc_str, ircProtocolDisplayText_exmo,
-                                            kuna_str)  # , gnomeHodlDeltaStr
+                                                str(fe_msg), rate_cmc_str, ircProtocolDisplayText_exmo,
+                                                kuna_str)  # , gnomeHodlDeltaStr
                                         else:
                                             self.send_res_exc = f'{fe_msg} | {rate_cmc_str} | {kuna_str}'  # , gnomeHodlDeltaStr
                                         print("self.send_res_exc:", self.send_res_exc, flush=True)
                                         print("where_mes_exc:", where_mes_exc, flush=True)
                                         self.send('PRIVMSG %s :\x033%s\r\n' % (where_mes_exc, self.send_res_exc))
                                         print(__name__, "point 6.1", flush=True)
-                                    except (ConnectionError, Timeout, TooManyRedirects) as e:
-                                        print(__name__, "point 6.1.ex", flush=True)
-                                        print(__name__, e, flush=True)
+                                    # except (ConnectionError, Timeout, TooManyRedirects) as e:
+                                    #   print(__name__, "point 6.1.ex", flush=True)
+                                    #    print(__name__, e, flush=True)
                                     except KeyError as e:
                                         print(__name__, e, flush=True)
-                                        self.send_res_exc = 'error in response json: %s' % str(e)
+                                        send_res_exc = 'error in response json: %s' % str(e)
                                         print(__name__, "self.send_res_exc:", self.send_res_exc, flush=True)
                                         print(__name__, "where_mes_exc:", where_mes_exc, flush=True)
-                                        self.send('PRIVMSG %s :%s\r\n' % (where_mes_exc, self.send_res_exc))
+                                        self.send('PRIVMSG %s :%s\r\n' % (where_mes_exc, send_res_exc))
                                         print(__name__, "send exited", flush=True)
                                 # print(__name__, "point 5.0", flush=True)
                         except:
@@ -1688,7 +1684,7 @@ class MyBot:
                 tb.print_exc()
                 import sys
                 sys.stderr.flush()
-                print("self.irc_socket.close(), iterate", flush=True);
+                print("self.irc_socket.close(), iterate", flush=True)
                 try:
                     self.irc_socket.close()
                 except KeyboardInterrupt as e:
@@ -1705,22 +1701,40 @@ from multiprocessing import Process
 import os
 
 
-def init_and_loop(settings_key, connection_props):
+def init_and_loop(settings_key, connection_settings: dict, config):
+    connection_props = connection_settings
     print('init_and_loop settings_key="%s"' % settings_key)
     print('%s.parent pid:' % settings_key, os.getppid())
     print('%s.pid:' % settings_key, os.getpid())
-    bot = MyBot(settings_key, connection_props)
+    bot = MyBot(settings_key, connection_settings, config)
     bot.login_and_loop()
+
+
+print(f"{__file__}, {__name__}: pytrends: processing Trend Requests")
+while True:
+    try:
+        pytrends = TrendReq(hl='ru-RU', tz=360)
+        break
+    except KeyboardInterrupt as e:
+        raise e
+    except:
+        traceback.print_exc()
+        TIME_TO_SLEEP_SECONDS = 1
+        print("sleeping %s seconds" % str(TIME_TO_SLEEP_SECONDS))
+        time.sleep(TIME_TO_SLEEP_SECONDS)
+        continue
+print(f"{__file__}, {__name__}: pytrends: completed.")
 
 
 # launch two threads with botsconn and login_and_loop
 def launch_all():
     from settings import getconfig
     print("processing configs")
-    connections = getconfig()["connections"]
+    cfg = getconfig()
+    connections = cfg["connections"]
     for key in connections.keys():
         conn_props = connections[key]
         print("launching connection '" + key + "', conn_props='" + str(conn_props) + "'")
-        Process(target=init_and_loop, args=(key, conn_props,)).start()
+        Process(target=init_and_loop, args=(key, conn_props, cfg, )).start()
         print("launched connection '" + key + "'")
     print("processed all connections")
