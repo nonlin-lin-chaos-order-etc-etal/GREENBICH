@@ -10,6 +10,8 @@
 
 Второй хештег, более точный и длинный: `*альфарусбот` `#альфарусбот`
 
+Финансовые токены (латиноязычный и кириллический): `$ARU` `{руб}АРУ`
+
 ## Previously 💚👾💚 Зелёный Бич (GreenBich) A Green Ecology bot 💚👾💚
 
 Ecology is disjointly more important than religions and all the other things and domains.
