@@ -1,12 +1,24 @@
-# 💚👾💚 Зелёный Бич (GreenBich) 💚👾💚
+![изображение](https://user-images.githubusercontent.com/19966907/134795709-8dd73610-9f17-42df-a250-26ca205f174e.png)
 
-## 💚👾💚 Green Ecology bot 💚👾💚
+# 💚👾💚 СИСТЕМА АЛЬФАРУС 💚👾💚
+
+💚👾💚 Альфарус или АльфарусБот — искусственный интеллект масштаба J.A.R.V.I.S. для поддержки и жизни русскоязычных и иных людей и государств во всём мире. Green Ecology Worlds 💚👾💚 🐸🌈🧚🐁`+∞*¤💎💚 visvitalis = ±∞*`👾☯🌌💚💞🧙`*`💚
+
+Одна из точек связи с ботом (пока что не реагирует ни на что): https://t.me/AlphaRusBot
+
+Официальный хештег: `*альфарус` `#альфарус`
+
+Второй хештег, более точный и длинный: `*альфарусбот` `#альфарусбот`
+
+Финансовые токены (латиноязычный и кириллический): `$ARU` `{руб}АРУ`
+
+## Previously 💚👾💚 Зелёный Бич (GreenBich) A Green Ecology bot 💚👾💚
 
 Ecology is disjointly more important than religions and all the other things and domains.
 
 ## Temporary Official Site
 
-💚 ⊙ https://BiocentricClouds.Dev/ 🐸🌈🧚🐁+∞¤💎💚vv∞8👾☯🌌💚💞🧙💚
+💚 ⊙ https://BiocentricClouds.Dev/ 🐸🌈🧚🐁+∞¤💎💚`vv±∞*`👾☯🌌💚💞🧙`*`💚
 
 --------*
 
