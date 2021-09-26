@@ -2,7 +2,7 @@
 
 # 💚👾💚 СИСТЕМА АЛЬФАРУС 💚👾💚
 
-💚👾💚 Альфарус или АльфарусБот — искусственный интеллект масштаба J.A.R.V.I.S. для поддержки и жизни русскоязычных и иных людей и государств во всём мире. Green Ecology Worlds 💚👾💚 🐸🌈🧚🐁+∞¤💎💚vis vitalis ±∞*👾☯🌌💚💞🧙*💚
+💚👾💚 Альфарус или АльфарусБот — искусственный интеллект масштаба J.A.R.V.I.S. для поддержки и жизни русскоязычных и иных людей и государств во всём мире. Green Ecology Worlds 💚👾💚 🐸🌈🧚🐁`+∞*¤💎💚 visvitalis = ±∞*`👾☯🌌💚💞🧙`*`💚
 
 Одна из точек связи с ботом (пока что не реагирует ни на что): https://t.me/AlphaRusBot
 
@@ -12,7 +12,7 @@ Ecology is disjointly more important than religions and all the other things and
 
 ## Temporary Official Site
 
-💚 ⊙ https://BiocentricClouds.Dev/ 🐸🌈🧚🐁+∞¤💎💚vv∞8👾☯🌌💚💞🧙💚
+💚 ⊙ https://BiocentricClouds.Dev/ 🐸🌈🧚🐁+∞¤💎💚`vv±∞*`👾☯🌌💚💞🧙`*`💚
 
 --------*
 
