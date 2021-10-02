@@ -1,3 +1,5 @@
+КСТАТИ Я РОДИЛСЯ ВОЗЛЕ ЯДЕРНОЙ СВАЛКИ ОГФУ И ПРОЧЕГО В АНГАРСКЕ РОССИЯ СССР 17.04.1974 В 8 УТРА АНГАРСКОГО ВРЕМЕНИ В РОДДОМЕ ВОЗЛЕ БУЛЬВАРНОЙ 10. РОДИТЕЛИ ЖИЛИ НА 3 ЭТАЖЕ КВ. 72.
+
 EUGENE GRIGORIEWITCH FILIPPOV ANGARSKIY INVENTION: HOLISTIC INFINITE* RADIUS TIME (NOT A SINGLE DIMENSIONAL LINE). IN 10 MINUTUES BOUNDED INVENTION LOCAL TIME SAMPLE: +2021-10-02 02:25:42 UTC nanoseconds:289193887
 
 составная дипломная работа, простирается за пределы моего периода обучения в УИИ. несколько проектов, постепенно их через облака и девопс заинтегрирую.
