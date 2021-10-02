@@ -6,7 +6,7 @@ EUGENE GRIGORIEWITCH FILIPPOV ANGARSKIY INVENTION: HOLISTIC INFINITE* RADIUS TIM
 
 вот один из компонентов, начался от кода одного сварщика который изучает кодинг и прошёл гарвардский курс CS успешно вот его бот MyIrcBot на питоне морфировал в мой форк и постепенно думаю в его код своего бота запуллкевестить сопрягая с дискуссиями с изначальным автором с ником Кай Брюненджи (Андрей Попов). вот репозиторий
 
-
+```
 
 <PANGRRTHELIONSSS> вот сырец бота https://github.com/nonlin-lin-chaos-order-etc-etal/NEWWORLD_U_A_CENTAURI_M8GI_GREEN_BICH_JONATHAN_SWIFTS_AVATAR_NEW_CHAPTERS_TAKE_ONE_PER_GUNT_CRYSTALS/issues/16
 <Lika> URL info:  <PANGRRTHELIONSSS » ??? Green Ecology Worlds bot ??? Current temporary official site: ? ? https://BiocentricClouds.Dev/ ????+?¤??vv?8??????? - <PANGRRTHELIONSSS
@@ -14,7 +14,7 @@ EUGENE GRIGORIEWITCH FILIPPOV ANGARSKIY INVENTION: HOLISTIC INFINITE* RADIUS TIM
 <PANGRRTHELIONSSS> !!aq постепенно ИИ нейросетевой думаю в него присобачить я щас в частном универе ИИ учусь у Димы Романова <PANGRRTHELIONSSS> вот сырец бота https://github.com/nonlin-lin-chaos-order-etc-etal/NEWWORLD_U_A_CENTAURI_M8GI_GREEN_BICH_JONATHAN_SWIFTS_AVATAR_NEW_CHAPTERS_TAKE_ONE_PER_GUNT_CRYSTALS/issues/16
 <GRRTHELION^SBOT> Quote added: [1781] постепенно ИИ нейросетевой думаю в него присобачить я щас в частном универе ИИ учусь у Димы Романова <PANGRRTHELIONSSS> вот сырец бота https://github.com/nonlin-lin-chaos-order-etc-etal/NEWWORLD_U_A_CENTAURI_M8GI_GREEN_BICH_JONATHAN_SWIFTS_AVATAR_NEW_CHAPTERS_TAKE_ONE_PER_GUNT_CRYSTALS/issues/16
 <Lika> URL info:  <PANGRRTHELIONSSS » ??? Green Ecology Worlds bot ??? Current temporary official site: ? ? https://BiocentricClouds.Dev/ ????+?¤??vv?8??????? - <PANGRRTHELIONSSS <- [:|||||:] detected! <PANGRRTHELIONSSS @ 02.10.2021 04:19>
-
+```
 
 
 EUGENE GRIGORIEWITCH FILIPPOV ANGARSKIY INVENTION: HOLISTIC INFINITE* RADIUS TIME (NOT A SINGLE DIMENSIONAL LINE TIME). IN 10 MINUTUES BOUNDED INVENTION LOCAL TIME SAMPLE: +2021-10-02 02:25:42 UTC nanoseconds:289193887 RECORDED AT https://github.com/nonlin-lin-chaos-order-etc-etal/NEWWORLD_U_A_CENTAURI_M8GI_GREEN_BICH_JONATHAN_SWIFTS_AVATAR_NEW_CHAPTERS_TAKE_ONE_PER_GUNT_CRYSTALS
