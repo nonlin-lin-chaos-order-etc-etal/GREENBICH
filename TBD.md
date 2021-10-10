@@ -1,4 +1,5 @@
- * где хутмоо моё SEE MY_MYTHOS ORG AND logicmoo.org TOO
+ * LINE DISCIPLINE СТАВИМ НА ЗЕРО КОФЕ 0 SILENT NON FLOOD CONNECTOR FOR GREENBOT LINE DISCIPLINE 17888 2001 !GET QUOTE <GRRTHELION^SBOT> Quote added: [2001] LINE DISCIPLINE 17888 LUNAR SUPERHOLOGRAPHIC TIME & MWI QM 
+ * LINE DISCIPLINE 1 * где хутмоо моё SEE MY_MYTHOS ORG AND logicmoo.org TOO
  * create whitelist putdownsatan antiflood godly measure
 
 ```
