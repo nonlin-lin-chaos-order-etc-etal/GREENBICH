@@ -20,7 +20,7 @@ from settings import settings as option
 
 LOG_TRACE = True
 
-ENABLE_EXMO = False
+ENABLE_EXMO = True
 
 
 print(f"{__file__}, {__name__}: starting")
@@ -634,11 +634,27 @@ class MyBot:
     # tok1[4:] tokens
     def print_quote(self, tok1):
         at = tok1[2]
-        query = " ".join(tok1[4:])
+        query = " ".join(tok1[4:]).strip()
+        if len(query) == 0:
+            # print a random quote
+            self.read_quotes()
+            from random import choice
+            q = choice(self.quotes_array)
+            poster = q['posted-by'].split("!")[0]
+            self.sendmsg(at, f"[{q['id']}] {q['text']} ({poster} at {q['date-posted']})")
+            return
+
         try:
             num = int(query)
         except ValueError:
-            self.sendmsg(at, f"Need a positive int.")
+            # self.search_for_quote(query)
+            self.read_quotes()
+            for q in self.quotes_array:
+                msg = q["text"]
+                if query in msg:
+                    poster = q['posted-by'].split("!")[0]
+                    self.sendmsg(at, f"[{q['id']}] {msg} ({poster} at {q['date-posted']})")
+                    return
             return
         if num > 0:
             num = num - 1
@@ -652,19 +668,31 @@ class MyBot:
         else:
             self.sendmsg(at, f"Need a positive int.")
 
-    def add_quote(self, tok1):
+    def add_quote(self, tok1, communicationsLineName):
         self.read_quotes()
         length = len(self.quotes_array)
+        for i in range(length):
+            q = self.quotes_array[i]
+            if not "id" in q:
+                q["id"] = i + 1
         quote = " ".join(tok1[4:])
+        quoteId = length + 1
         self.quotes_array.append({
+            "id": quoteId,
             "posted-by": tok1[0][1:],
             "text": quote,
             "date-posted": str(datetime.datetime.now(pytz.utc))
         })
         at = tok1[2]
         self.write_quotes()
-        self.sendmsg(at, f"Quote added: [{length + 1}] {quote}")
-        pass
+        if self.is_compact_for_channel(communicationsLineName):
+            if len(quote) >= 15:
+                report = f"Quote [{quoteId}] added: '{quote[:7]}...{quote[-7:]}'."
+            else:
+                report = f"Quote [{quoteId}] added: '{quote}'."
+        else:
+            report = f"Quote added: [{quoteId}] {quote}"
+        self.sendmsg(at, report)
 
     def maybe_quotes(self, str_incoming_line, sent_by, commLineName):
         tok1 = str_incoming_line.split(" ")
@@ -680,7 +708,7 @@ class MyBot:
                 return True
         if cmd == "!!aq":
             if self.grantCommand(sent_by, commLineName):
-                self.add_quote(tok1)
+                self.add_quote(tok1, commLineName)
                 return True
         return False
 
@@ -857,6 +885,12 @@ class MyBot:
         props = self.channelsProps[commLineName] if commLineName in self.channelsProps else None
         if props is None: return 10
         return props['news_count'] if 'news_count' in props else 3
+
+    def is_compact_for_channel(self, commLineName):
+        COMPACT_DEFAULT = True
+        props = self.channelsProps[commLineName] if commLineName in self.channelsProps else None
+        modes = props['modes'] if props is not None and 'modes' in props else None
+        return modes['compact'] if modes is not None and 'compact' in modes else COMPACT_DEFAULT
 
     def pinger_of_server(self):
         print("spawned pinger_of_server, key: '%s'" % self.settings_key)
@@ -1422,7 +1456,7 @@ class MyBot:
                                             response = session.get(url, params=parameters)
                                             if LOG_TRACE: print("cmc.text:", response.text)
                                             cmc = json.loads(response.text)
-                                            if LOG_TRACE: print(f"cmc.json: {get_pretty_json_string(cmc)}")
+                                            # if LOG_TRACE: print(f"cmc.json: {get_pretty_json_string(cmc)}")
                                             btc_usd = cmc["data"]["BTC"]["quote"]["USD"]["price"]
                                             eth_usd = cmc["data"]["ETH"]["quote"]["USD"]["price"]
                                             dash_usd = cmc["data"]["DASH"]["quote"]["USD"]["price"]
@@ -1587,28 +1621,34 @@ class MyBot:
                                                 url = "http://api.exmo.com/v1/ticker/"
                                                 print("querying %s" % (url,), flush=True)
                                                 exmo_ticker = json.loads(urllib.request.urlopen(url).read())
-                                                # print("exmo_ticker:", exmo_ticker)
+                                                print(f"exmo_ticker: {exmo_ticker}")
                                                 # "USD_RUB":{"buy_price":"63.520002", "sell_price":"63.7", "last_trade":"63.678587", "high":"64.21396756", "low":"63.35", "avg":"63.78778311", "vol":"281207.5729779", "vol_curr":"17906900.90093241", "updated":1564935589 }
                                                 # "BTC_RUB":{"buy_price":"692674.53013854","sell_price":"694990", "last_trade":"693302.09","high":"700000","low":"675000.00100102", "avg":"687445.89449801","vol":"223.90253022", "vol_curr":"155232092.15894149", "updated":1564935590 }
                                                 # exmo_BTC_RUB_json = exmo_ticker["BTC_RUB"]
+                                                """
                                                 exmo_BTC_USD_json = exmo_ticker[
                                                     "BTC_USD"] if not 'error' in exmo_ticker else None
                                                 exmo_ETH_USD_json = exmo_ticker[
                                                     "ETH_USD"] if not 'error' in exmo_ticker else None
+                                                """
+                                                exmo_TONCOIN_USD_json = exmo_ticker[
+                                                    "TONCOIN_USDT"] if not 'error' in exmo_ticker else None
                                                 # exmo_USD_RUB_json = exmo_ticker["USD_RUB"]
 
+                                                """
                                                 exmo_BTC_USD_sell_price = exmo_BTC_USD_json[
                                                     "sell_price"] if not 'error' in exmo_ticker else None
                                                 btcToUsdFloat = float(
                                                     exmo_BTC_USD_sell_price) if not 'error' in exmo_ticker else None
                                                 btcToRurFloat = float(exmo_ticker["BTC_RUB"][
                                                                           "buy_price"]) if not 'error' in exmo_ticker else None
+                                                """
 
                                                 if 'error' in exmo_ticker:
-                                                    ircProtocolDisplayText_exmo = "Exmo API returned error: '%s'" % str(
-                                                        exmo_ticker['error'])
+                                                    ircProtocolDisplayText_exmo = f"Exmo.me error: '{exmo_ticker['error']}'"
                                                 else:
-                                                    ircProtocolDisplayText_exmo = 'Курс Exmo: ' + \
+                                                    """
+                                                    ircProtocolDisplayText_exmo = 'Exmo.me: ' + \
                                                                                   'BTC/USD S ' + str(
                                                         self.format_currency(exmo_BTC_USD_sell_price)) + ' B ' + str(
                                                         self.format_currency(exmo_BTC_USD_json["buy_price"])) + " | " + \
@@ -1621,10 +1661,15 @@ class MyBot:
                                                             float(exmo_ticker["BTC_RUB"]["sell_price"]))) + ' B ' + str(
                                                         self.format_currency(
                                                             float(exmo_ticker["BTC_RUB"]["buy_price"]))) + "."
-
+                                                    """
+                                                    tons = self.format_currency(exmo_TONCOIN_USD_json["sell_price"])
+                                                    tonb = self.format_currency(exmo_TONCOIN_USD_json["buy_price"])
+                                                    ircProtocolDisplayText_exmo = f'Exmo.me: TONCOIN/USDT S {tons} B {tonb}.'
                                             except (ConnectionError, Timeout, TooManyRedirects) as e:
                                                 print(__name__, e, flush=True)
+                                                ircProtocolDisplayText_exmo = f"Can't fetch exmo.me: {e}."
 
+                                            """
                                             # btcToRurFloat = None
                                             is_dialogue_with_master = False
                                             if self.btcToRurFloat != "Unknown" and is_dialogue_with_master:
@@ -1647,16 +1692,14 @@ class MyBot:
                                                      else "убытки-с =( читаем книжку! http://knijka.i2p/"))
                                             else:
                                                 gnomeHodlDeltaStr = "??? руб."
+                                            """
 
                                         # Bitcoin.com Markets API
                                         # Coming soon
                                         # https://developer.bitcoin.com/
 
-                                        ircProtocolDisplayText_exmo = None
                                         if ENABLE_EXMO:
-                                            self.send_res_exc = '%s | %s | %s | %s' % (
-                                                str(fe_msg), rate_cmc_str, ircProtocolDisplayText_exmo,
-                                                kuna_str)  # , gnomeHodlDeltaStr
+                                            self.send_res_exc = f'{fe_msg} | {rate_cmc_str} | {kuna_str} | {ircProtocolDisplayText_exmo}'  # , gnomeHodlDeltaStr
                                         else:
                                             self.send_res_exc = f'{fe_msg} | {rate_cmc_str} | {kuna_str}'  # , gnomeHodlDeltaStr
                                         print("self.send_res_exc:", self.send_res_exc, flush=True)
