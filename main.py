@@ -1501,7 +1501,7 @@ class MyBot:
         							  ]
         							]
         							"""
-                                        url = 'https://api.kuna.io/v3/tickers?symbols=tonusdt'
+                                        url = 'https://api.kuna.io/v3/tickers?symbols=everusdt'
                                         parameters = {
                                         }
                                         headers = {
@@ -1520,7 +1520,7 @@ class MyBot:
                                             ask_str = str(self.format_currency(ask))
                                             vol24_str = str(self.format_currency(vol24))
 
-                                            kuna_str = 'Kuna.io \x02TON/USDT\x02: BID ' + bid_str + ' ASK ' + ask_str + ' VOL24 ' + vol24_str + "."
+                                            kuna_str = 'Kuna.io \x02EVER/USDT\x02: BID ' + bid_str + ' ASK ' + ask_str + ' VOL24 ' + vol24_str + "."
                                         except (ConnectionError, Timeout, TooManyRedirects) as e:
                                             print(__name__, e, flush=True)
                                             kuna_str = 'Kuna.io error: ' + str(e)
