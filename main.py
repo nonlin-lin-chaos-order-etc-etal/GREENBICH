@@ -648,10 +648,11 @@ class MyBot:
             num = int(query)
         except ValueError:
             # self.search_for_quote(query)
+            query = query.lower()
             self.read_quotes()
             for q in self.quotes_array:
                 msg = q["text"]
-                if query in msg:
+                if query in msg.lower():
                     poster = q['posted-by'].split("!")[0]
                     self.sendmsg(at, f"[{q['id']}] {msg} ({poster} at {q['date-posted']})")
                     return
@@ -1100,38 +1101,30 @@ class MyBot:
                         # print(__file__, "krako test")
                         try:
                             where_message = communicationsLineName
-                            if message is not None and (("!k" in message) or ("!к" in message)) and \
+                            if message is not None and (message.startswith('!k') or message.startswith("!к")) and \
                                     dataTokensDelimitedByWhitespace[1] == "PRIVMSG":
                                 if self.grantCommand(sent_by, communicationsLineName):
                                     print(__name__, "krako test success", flush=True)
-                                    if (message == "!k") or (message == "!к"):
-                                        print(__name__, "krako: mask2ctx='" + str(mask2ctx) + "', sender_mask='" + str(
-                                            sender_mask) + "'", flush=True)
+                                    m = message.strip()
+                                    if m == "!k" or m == "!к":
+                                        print(f"{__name__} krako: mask2ctx='{mask2ctx}', sender_mask='{sender_mask}'", flush=True)
                                         prev_msg = self.get_prev_msg(mask2ctx, sender_mask)
-                                        print(__name__, "krako translating prev_msg: '" + str(prev_msg) + "'",
-                                              flush=True)
+                                        print(f"{__name__} krako translating prev_msg: '{prev_msg}'", flush=True)
                                         tr_txt = prev_msg
                                     else:
-                                        if ':!k' in lineJoined:
-                                            tr_txt = message.split('!k ', 1)[1].strip()
-                                        else:
-                                            if ':!к' in lineJoined:
-                                                tr_txt = message.split('!к ', 1)[1].strip()
-                                            else:
-                                                raise AssertionError("kr1")
+                                        tr_txt = m[2:].strip()
                                     res_txt = translate_krzb.tr(tr_txt)
-                                    self.send(
-                                        'PRIVMSG ' + where_message + ' :\x02перевод с кракозябьечьего:\x02 ' + res_txt + '\r\n')
+                                    self.send(f'PRIVMSG {where_message} :\x02перевод с кракозябьечьего:\x02 {res_txt}\r\n')
                                     continue
                         except KeyboardInterrupt as ex:
                             tb.print_exc()
                             sys.stderr.flush()
-                            self.send('PRIVMSG ' + where_message + ' :\x02!k error:\x02 ' + str(ex) + '\r\n')
+                            self.send(f'PRIVMSG {where_message} :\x02!k error:\x02 {ex}\r\n')
                             raise ex
                         except BaseException as ex:
                             tb.print_exc()
                             sys.stderr.flush()
-                            self.send('PRIVMSG ' + where_message + ' :\x02!k error:\x02 ' + str(ex) + '\r\n')
+                            self.send(f'PRIVMSG {where_message} :\x02!k error:\x02 {ex}\r\n')
                             continue
 
                     """
