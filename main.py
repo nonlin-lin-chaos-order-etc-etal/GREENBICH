@@ -84,6 +84,59 @@ class MyBot:
     def getconfig(self):
         return self.config
 
+    # pip3 install xlrd pandas
+
+    def fetch_sp500_index(self):
+        spglobal_hostid = settings.settings('spglobal_hostid')
+        url = f'https://www.spglobal.com/spdji/en/idsexport/file.xls?hostIdentifier={spglobal_hostid}&redesignExport=true&languageId=1&selectedModule=PerformanceTableView&selectedSubModule=Daily&indexId=340'
+        parameters = {}
+        headers = {}
+        try:
+            print('fetch_sp500_index: get url=' + url, flush=True)
+            from requests import Request, Session
+            from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
+            import pandas as pd
+            session = Session()
+            session.headers.update(headers)
+            response = session.get(url, params=parameters)
+            df = pd.read_excel(response.content)
+            print(f"{__name__}: df:\n{df}")
+            print(f"{__name__}: df.keys():\n{df.keys()}")
+            print(f"{__name__}: col count:\n{len(df.keys())}")
+            price_row_found = False
+            price_col_found = False
+            price_row_index = None
+            price_col_index = None
+            col_index = 0
+            for col_name in df.keys():
+                col = df[col_name]
+                row_index = 0
+                for cell in col:
+                    value = f'{cell}'.strip()
+                    if value == 'Price Return\nS&P 500':
+                        price_row_found = True
+                        price_row_index = row_index
+                        print("price_row_index: ", price_row_index)
+                    else:
+                        # print(f"val: '{value}'")
+                        if value == 'Index Level':
+                            price_col_found = True
+                            price_col_index = col_index
+                            print("price_col_index: ", price_col_index)
+                    if price_row_found and price_col_found:
+                        break
+                    row_index = row_index + 1
+                if price_row_found and price_col_found:
+                    break
+                col_index = col_index + 1
+            if not price_row_found or not price_col_found:
+                return f'S&P500 Fetch Error: Unrecognized Format'
+            else:
+                return f'S&P500 Index: {"{:0,.2f}".format(float(df.iloc[price_row_index, price_col_index]))}'
+        except (ConnectionError, Timeout, TooManyRedirects) as e:
+            print(__name__, e, flush=True)
+            return f'S&P500 Fetch Error: {e}'
+
     @staticmethod
     def get_create_ctx_from_mask2ctx(mask2ctx, mask):
         if mask in mask2ctx:
@@ -1552,6 +1605,8 @@ class MyBot:
                                             print(__name__, e, flush=True)
                                             kuna_str = 'Kuna.io error: ' + str(e)
 
+                                        sp500index_str = self.fetch_sp500_index()
+
                                         btcToUsdFloat = None
                                         btcToRurFloat = None
 
@@ -1692,9 +1747,9 @@ class MyBot:
                                         # https://developer.bitcoin.com/
 
                                         if ENABLE_EXMO:
-                                            self.send_res_exc = f'{fe_msg} | {rate_cmc_str} | {kuna_str} | {ircProtocolDisplayText_exmo}'  # , gnomeHodlDeltaStr
+                                            self.send_res_exc = f'{sp500index_str} | {fe_msg} | {rate_cmc_str} | {kuna_str} | {ircProtocolDisplayText_exmo}'  # , gnomeHodlDeltaStr
                                         else:
-                                            self.send_res_exc = f'{fe_msg} | {rate_cmc_str} | {kuna_str}'  # , gnomeHodlDeltaStr
+                                            self.send_res_exc = f'{sp500index_str} | {fe_msg} | {rate_cmc_str} | {kuna_str}'  # , gnomeHodlDeltaStr
                                         print("self.send_res_exc:", self.send_res_exc, flush=True)
                                         print("where_mes_exc:", where_mes_exc, flush=True)
                                         self.send('PRIVMSG %s :\x033%s\r\n' % (where_mes_exc, self.send_res_exc))
