@@ -285,8 +285,9 @@ class MyBot:
     @staticmethod
     def format_total_cap(total_market_cap_usd):
         total_market_cap_usd_t = float(total_market_cap_usd) / 1.0e12
-        b = "{:0,.2f}".format(total_market_cap_usd_t) + "T USD"
-        p = "{:0,.2f}".format(total_market_cap_usd_t / TOTAL_WORLD_CAP_TRILLIONS_USD * 100.0) + f'% of the world cap e.g. ${format_currency(TOTAL_WORLD_CAP_TRILLIONS_USD)}T'
+        b = "$"+"{:0,.2f}T".format(total_market_cap_usd_t)
+        total_str = "{:0,.2f}T".format(TOTAL_WORLD_CAP_TRILLIONS_USD)
+        p = "{:0,.2f}".format(total_market_cap_usd_t / TOTAL_WORLD_CAP_TRILLIONS_USD * 100.0) + f'% of the world cap e.g. $'+f'{total_str}'
         return b + " (" + p + ')'
 
     def fetch_last_hour_new_news(self, old_news_cache=None, kwlist=None):
