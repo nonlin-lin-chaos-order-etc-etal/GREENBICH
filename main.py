@@ -22,6 +22,8 @@ LOG_TRACE = True
 
 ENABLE_EXMO = True
 
+TOTAL_WORLD_CAP_TRILLIONS_USD = 116.78  # Source: https://www.statista.com/statistics/274490/global-value-of-share-holdings-since-2000/
+
 
 print(f"{__file__}, {__name__}: starting")
 
@@ -284,7 +286,7 @@ class MyBot:
     def format_total_cap(total_market_cap_usd):
         total_market_cap_usd_t = float(total_market_cap_usd) / 1.0e12
         b = "{:0,.2f}".format(total_market_cap_usd_t) + "T USD"
-        p = "{:0,.2f}".format(total_market_cap_usd_t / 60.0 * 100.0) + '% of entire world cap e.g. 60T USD'
+        p = "{:0,.2f}".format(total_market_cap_usd_t / TOTAL_WORLD_CAP_TRILLIONS_USD * 100.0) + f'% of the world cap e.g. ${format_currency(TOTAL_WORLD_CAP_TRILLIONS_USD)}T'
         return b + " (" + p + ')'
 
     def fetch_last_hour_new_news(self, old_news_cache=None, kwlist=None):
