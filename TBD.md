@@ -14,7 +14,11 @@
 <baz> ломать не строить
 <owo> какой блядь paradiselist
 <owo> какие сука раи
-<baz> eccentric_Turiyya, плаз умеет ломать
+<baz> eccentric_Turiyya, плаз умеет ломать <ISSUE><боль> !!aq $STIGMA LINE DISCIPLINE 17
+<GRRTHELION^SBOT> Quote [2917] added: '$STIGMA...LINE 17'.
+<боль> !!q 2917
+<GRRTHELION^SBOT> [2917] $STIGMA LINE DISCIPLINE 17 (боль at 2021-11-23 18:24:56.602225+00:00)
+<боль> чё за глюк</ISSUE>
 <eccentric_Turiyya> райлист крч. хватит терпеть инглишь
 <owo> https://wiki.zandronum.com/IRC:Channel_Modes
 <LinkShow1> Title: IRC:Channel Modes - Zandronum Wiki
