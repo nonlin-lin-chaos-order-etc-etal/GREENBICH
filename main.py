@@ -799,10 +799,10 @@ class MyBot:
             if self.grantCommand(sent_by, commLineName):
                 self.print_quote(tok1)
                 return True
-        if cmd == "!!aq":
-            if self.grantCommand(sent_by, commLineName):
-                self.add_quote(tok1, commLineName)
-                return True
+        #if cmd == "!!aq":
+        #    if self.grantCommand(sent_by, commLineName):
+        #        self.add_quote(tok1, commLineName)
+        #        return True
         return False
 
     def help_make_choice(self, message):
