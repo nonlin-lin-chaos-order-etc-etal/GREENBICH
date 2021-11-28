@@ -17,6 +17,7 @@ from pytrends.request import TrendReq
 import settings
 import translate_krzb
 from settings import settings as option
+import subprocess
 
 LOG_TRACE = True
 
@@ -30,6 +31,39 @@ print(f"{__file__}, {__name__}: starting")
 
 def get_pretty_json_string(value):
     return json.dumps(value, indent=4, sort_keys=True, ensure_ascii=False)
+
+
+def shell(
+    shell_command_line: str,
+    print_stdout_stderr_bool: bool = True,
+    capture_streams_bool: bool = True,
+    as_text: bool = True,
+    shell_executable_str: str = "bash",
+    command_line_flag_str: str = "-c"
+):
+    result = subprocess.run(
+        [shell_executable_str, command_line_flag_str, shell_command_line], 
+        stdout = subprocess.PIPE,
+        stderr = subprocess.PIPE
+
+        #capture_output=capture_streams_bool, text=as_text  # py3.7+
+        )
+    if print_stdout_stderr_bool:
+        try:
+            print(result.stdout.decode('utf-8'))
+        except KeyboardInterrupt:
+            raise
+        except:
+            import traceback
+            traceback.print_exc()
+        try:
+            print(result.stderr.decode('utf-8'))
+        except KeyboardInterrupt:
+            raise
+        except:
+            import traceback
+            traceback.print_exc()
+    return result
 
 
 class MyBot:
@@ -666,6 +700,8 @@ class MyBot:
         print(__name__, "writing quotes.json")
         with open('quotes.json', 'w') as myfile:
             myfile.write(get_pretty_json_string(self.quotes_array))
+        shell("echo \"begin...\" && cp -v ~user/vcs/greenbich-runtime/quotes.json /DK/hutor_i2p_htdocs/ && echo \"exit status: $?\" && ls -alh /DK/hutor_i2p_htdocs/ && echo \"exit status: $?\" && echo \"done.\"")
+
 
     def read_quotes(self):
         # read file
