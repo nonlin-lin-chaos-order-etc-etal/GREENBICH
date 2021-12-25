@@ -1,3 +1,10 @@
+
+nonlin-lin-chaos-order-etc-etal /
+NEWWORLD_U_A_CENTAURI_M8GI_GREEN_BICH_JONATHAN_SWIFTS_AVATAR_NEW_CHAPTERS_TAKE_ONE_PER_GUNT_CRYSTALS
+Public
+forked from kaibruneji/MyIrcBot 
+https://github.com/nonlin-lin-chaos-order-etc-etal/GREENBICH
+
 КСТАТИ Я РОДИЛСЯ ВОЗЛЕ ЯДЕРНОЙ СВАЛКИ ОГФУ И ПРОЧЕГО В АНГАРСКЕ РОССИЯ СССР 17.04.1974 В 8 УТРА АНГАРСКОГО ВРЕМЕНИ В РОДДОМЕ ВОЗЛЕ БУЛЬВАРНОЙ 10. РОДИТЕЛИ ЖИЛИ НА 3 ЭТАЖЕ КВ. 72. УРАНОВЫЙ =)*
 
 EUGENE GRIGORIEWITCH FILIPPOV ANGARSKIY'S INVENTION: HOLISTIC INFINITE* RADIUS TIME (NOT A SINGLE DIMENSIONAL LINE). IN 10 MINUTUES BOUNDED INVENTION LOCAL TIME SAMPLE: +2021-10-02 02:25:42 UTC nanoseconds:289193887.
