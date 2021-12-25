@@ -1,4 +1,4 @@
-cd /home/user/git/ircbot_greenbich/
+cd /home/user/vcs/ircbot_greenbich/
 
 echo pwd
 pwd
@@ -8,7 +8,7 @@ whoami
 . pythonvars.sh
 
 # export CL="strace ./venv/bin/python ./launch_all.py"
-export CL="./venv/bin/python ./launch_all.py"
+export CL="./venv3sn2/bin/python ./launch_all.py"
 echo "launching $CL"
 $CL
 

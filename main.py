@@ -19,6 +19,8 @@ import translate_krzb
 from settings import settings as option
 import subprocess
 
+from urllib.error import URLError
+
 LOG_TRACE = True
 
 ENABLE_EXMO = True
@@ -135,40 +137,43 @@ class MyBot:
             session = Session()
             session.headers.update(headers)
             response = session.get(url, params=parameters)
-            df = pd.read_excel(response.content)
-            print(f"{__name__}: df:\n{df}")
-            print(f"{__name__}: df.keys():\n{df.keys()}")
-            print(f"{__name__}: col count:\n{len(df.keys())}")
-            price_row_found = False
-            price_col_found = False
-            price_row_index = None
-            price_col_index = None
-            col_index = 0
-            for col_name in df.keys():
-                col = df[col_name]
-                row_index = 0
-                for cell in col:
-                    value = f'{cell}'.strip()
-                    if value == 'Price Return\nS&P 500':
-                        price_row_found = True
-                        price_row_index = row_index
-                        print("price_row_index: ", price_row_index)
-                    else:
-                        # print(f"val: '{value}'")
-                        if value == 'Index Level':
-                            price_col_found = True
-                            price_col_index = col_index
-                            print("price_col_index: ", price_col_index)
+            if response.status_code == 200:
+                df = pd.read_excel(response.content)
+                print(f"{__name__}: df:\n{df}")
+                print(f"{__name__}: df.keys():\n{df.keys()}")
+                print(f"{__name__}: col count:\n{len(df.keys())}")
+                price_row_found = False
+                price_col_found = False
+                price_row_index = None
+                price_col_index = None
+                col_index = 0
+                for col_name in df.keys():
+                    col = df[col_name]
+                    row_index = 0
+                    for cell in col:
+                        value = f'{cell}'.strip()
+                        if value == 'Price Return\nS&P 500':
+                            price_row_found = True
+                            price_row_index = row_index
+                            print("price_row_index: ", price_row_index)
+                        else:
+                            # print(f"val: '{value}'")
+                            if value == 'Index Level':
+                                price_col_found = True
+                                price_col_index = col_index
+                                print("price_col_index: ", price_col_index)
+                        if price_row_found and price_col_found:
+                            break
+                        row_index = row_index + 1
                     if price_row_found and price_col_found:
                         break
-                    row_index = row_index + 1
-                if price_row_found and price_col_found:
-                    break
-                col_index = col_index + 1
-            if not price_row_found or not price_col_found:
-                return f'S&P500 Fetch Error: Unrecognized Format'
+                    col_index = col_index + 1
+                if not price_row_found or not price_col_found:
+                    return f'S&P500 Error: Unknown Format'
+                else:
+                    return f'S&P500 Index: {"{:0,.2f}".format(float(df.iloc[price_row_index, price_col_index]))}'
             else:
-                return f'S&P500 Index: {"{:0,.2f}".format(float(df.iloc[price_row_index, price_col_index]))}'
+                return f'S&P500 Error: HTTP {response.status_code} {response.reason[:10] if response.reason else "No message"}'
         except (ConnectionError, Timeout, TooManyRedirects) as e:
             print(__name__, e, flush=True)
             return f'S&P500 Fetch Error: {e}'
@@ -1752,7 +1757,7 @@ class MyBot:
                                                     tons = self.format_currency(exmo_TONCOIN_USD_json["sell_price"])
                                                     tonb = self.format_currency(exmo_TONCOIN_USD_json["buy_price"])
                                                     ircProtocolDisplayText_exmo = f'Exmo.me: TONCOIN/USDT S {tons} B {tonb}.'
-                                            except (ConnectionError, Timeout, TooManyRedirects) as e:
+                                            except (ConnectionError, Timeout, TooManyRedirects, URLError) as e:
                                                 print(__name__, e, flush=True)
                                                 ircProtocolDisplayText_exmo = f"Can't fetch exmo.me: {e}."
 
