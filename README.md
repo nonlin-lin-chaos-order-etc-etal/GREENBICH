@@ -207,22 +207,35 @@ Put the following into `local.json`:
 ```
 {
     "connections": {
-        "net1key":{
-             "irc_server_hostname":"127.0.0.1"
-            ,"port":6667
-            ,"channelsProps":{"#chan1":{"news_count":5},"#chan2":{"news_count":10},"#chan3":{"news_count":1}}
-            ,"password": "x"
-            ,"titleEnabled":false
-            ,"onlycmc":true
-            ,"enable_krako_translation":true
-            ,"enable_hextoip":true
-            
-            ,"InitialBotNick":"botnick"
+        "tg":{
+            "bot1key":{
+                "BOT_TOKEN":"..."
+                ,"onlycmc":true
+            },
+            "bot2key":{
+                "BOT_TOKEN":"..."
+                ,"onlycmc":true
+            },
+            ...
         },
-        "net2key":{
-            //same as above
-        },
-        ...
+        "irc":{
+            "net1key":{
+                 "irc_server_hostname":"127.0.0.1"
+                ,"port":6667
+                ,"channelsProps":{"#chan1":{"news_count":5, "modes": {"compact":true}},"#chan2":{"news_count":10, "modes": {"compact":false}},"#chan3":{"news_count":1, "modes": {"compact":true}}}
+                ,"password": "x"
+                ,"titleEnabled":false
+                ,"onlycmc":true
+                ,"enable_krako_translation":true
+                ,"enable_hextoip":true
+                
+                ,"InitialBotNick":"botnick"
+            },
+            "net2key":{
+                //same as above
+            },
+            ...
+        }
     }
     ,"coinmarketcap_apikey": "xxxx"
     ,"rapidapi_appkey":"xxxx"

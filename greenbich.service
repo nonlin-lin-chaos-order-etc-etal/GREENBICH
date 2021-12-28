@@ -4,7 +4,7 @@
 Description=greenbich irc bot service
 
 [Service]
-ExecStart=/usr/bin/bash -c /home/user/vcs/ircbot_greenbich/bin/run.sh
+ExecStart=/bin/bash -c /home/user/vcs/ircbot_greenbich/bin/run.sh
 
 [Install]
 WantedBy=multi-user.target
